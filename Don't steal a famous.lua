@@ -1,52 +1,21 @@
--- Shadow Hub: Premium Stealth & Agressive TP
+-- Shadow Hub: Premium Stealth & Agressive TP + Auto Upgrade
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
 
 -- CONFIGURAÇÕES DE LÓGICA
-local States = { Farm = false }
+local States = { Farm = false, Upgrade = false }
 local BaseCFrame = CFrame.new(-29.6688538, -1.23751986, 57.1520157, 0, -1, 0, 0, 0, -1, 1, 0, 0)
 local SafeHeight = -1.23751986 
 local npcFolder = workspace.Map.Zones.Field.NPC
+local slotsPath = workspace.Map.Plots.Plot2.Plot.Slots
 
 -- --- INTERFACE VISUAL SHADOW HUB ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "ShadowHub_Premium"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999 -- Garante que apareça por cima de tudo
+ScreenGui.DisplayOrder = 999
 
--- --- TELA DE CARREGAMENTO (FORÇADA) ---
-local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 50) -- Cobre a tela toda
-LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-LoadingFrame.BorderSizePixel = 0
-LoadingFrame.ZIndex = 1000
-
-local LoaderTitle = Instance.new("TextLabel", LoadingFrame)
-LoaderTitle.Size = UDim2.new(1, 0, 0, 100)
-LoaderTitle.Position = UDim2.new(0, 0, 0.4, 0)
-LoaderTitle.Text = "EXECUTANDO SHADOW HUB"
-LoaderTitle.Font = Enum.Font.GothamBold
-LoaderTitle.TextSize = 22
-LoaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoaderTitle.BackgroundTransparency = 1
-LoaderTitle.ZIndex = 1001
-
-local ProgressBarBack = Instance.new("Frame", LoadingFrame)
-ProgressBarBack.Size = UDim2.new(0, 280, 0, 4)
-ProgressBarBack.Position = UDim2.new(0.5, -140, 0.55, 0)
-ProgressBarBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ProgressBarBack.BorderSizePixel = 0
-ProgressBarBack.ZIndex = 1001
-
-local ProgressBarFill = Instance.new("Frame", ProgressBarBack)
-ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
-ProgressBarFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-ProgressBarFill.BorderSizePixel = 0
-ProgressBarFill.ZIndex = 1002
-
--- --- INTERFACE PRINCIPAL (INVISÍVEL NO INÍCIO) ---
+-- Botão Flutuante (Abre/Fecha)
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
 OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
@@ -55,18 +24,32 @@ OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextSize = 24
 OpenBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 10)
+local BtnStroke = Instance.new("UIStroke", OpenBtn)
+BtnStroke.Color = Color3.fromRGB(40, 40, 40)
+BtnStroke.Thickness = 2
 
+-- Painel Principal (Aumentado para caber o novo botão)
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 140)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
+MainFrame.Size = UDim2.new(0, 220, 0, 190)
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -95)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.Visible = false
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Color3.fromRGB(60, 60, 60)
+MainStroke.Thickness = 1.5
 
--- Botão de Toggle
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "SHADOW HUB"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundTransparency = 1
+
+-- Funções Visuais de Toggle
 local function createToggle(name, pos, key)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 190, 0, 45)
@@ -87,40 +70,36 @@ local function createToggle(name, pos, key)
     end)
 end
 
-createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 60), "Farm")
+createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 55), "Farm")
+createToggle("AUTO UPGRADE (BASE)", UDim2.new(0, 15, 0, 110), "Upgrade")
 
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- --- SEQUÊNCIA DE CARREGAMENTO CORRIGIDA ---
-task.spawn(function()
-    -- Garante que a tela de carregamento apareça por 2.5 segundos
-    ProgressBarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.5, true)
-    
-    -- Efeito de texto piscando
-    for i = 1, 5 do
-        LoaderTitle.TextTransparency = 0.5
-        task.wait(0.25)
-        LoaderTitle.TextTransparency = 0
-        task.wait(0.25)
+-- --- LÓGICA DE UPGRADE ---
+spawn(function()
+    while true do
+        task.wait(0.5) -- Delay para não sobrecarregar o servidor
+        if States.Upgrade then
+            for i = 1, 16 do
+                local slot = slotsPath:FindFirstChild(tostring(i))
+                if slot and slot:FindFirstChild("UpgradeSing") then
+                    local upgradePart = slot.UpgradeSing
+                    -- Simula o toque/clique no botão de upgrade
+                    firetouchinterest(Player.Character.HumanoidRootPart, upgradePart, 0)
+                    firetouchinterest(Player.Character.HumanoidRootPart, upgradePart, 1)
+                    
+                    -- Se houver ProximityPrompt no upgrade, ativa também
+                    local prompt = upgradePart:FindFirstChildWhichIsA("ProximityPrompt")
+                    if prompt then fireproximityprompt(prompt) end
+                end
+            end
+        end
     end
-    
-    -- Fade Out
-    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
-    TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    TweenService:Create(ProgressBarBack, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(ProgressBarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    
-    fade:Play()
-    fade.Completed:Wait()
-    
-    LoadingFrame.Visible = false
-    OpenBtn.Visible = true
-    MainFrame.Visible = true
 end)
 
--- --- LÓGICA DE FARM (MANTIDA) ---
+-- --- LÓGICA DE FARM AGRESSIVO (MANTIDA) ---
 local function AgressiveCollect(npc)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     local npcRoot = npc:FindFirstChildWhichIsA("BasePart") or npc:FindFirstChild("HumanoidRootPart")
