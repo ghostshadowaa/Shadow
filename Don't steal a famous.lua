@@ -1,56 +1,40 @@
--- Shadow Hub: Premium Stealth & Agressive TP (v3 Ultra-Fix)
+-- Shadow Hub: Premium Edition (STABLE & BUG-FREE)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 
 -- CONFIGURAÇÕES DE LÓGICA
 local States = { Farm = false, Upgrade = false }
 local BaseCFrame = CFrame.new(-29.6688538, -1.23751986, 57.1520157, 0, -1, 0, 0, 0, -1, 1, 0, 0)
 local SafeHeight = -1.23751986 
-local npcFolder = workspace.Map.Zones.Field.NPC
+local npcFolder = workspace:WaitForChild("Map"):WaitForChild("Zones"):WaitForChild("Field"):WaitForChild("NPC")
 
--- --- INTERFACE VISUAL ---
+-- --- INTERFACE VISUAL SHADOW HUB ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_UltraFix"
-ScreenGui.DisplayOrder = 9999 -- Garante prioridade máxima de visão
+ScreenGui.Name = "ShadowHub_Fixed"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
 
--- TELA DE CARREGAMENTO (ESTILIZADA)
-local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 100)
-LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-LoadingFrame.ZIndex = 10000
-
-local LoaderTitle = Instance.new("TextLabel", LoadingFrame)
-LoaderTitle.Size = UDim2.new(1, 0, 0, 100)
-LoaderTitle.Position = UDim2.new(0, 0, 0.45, 0)
-LoaderTitle.Text = "EXECUTANDO SHADOW HUB"
-LoaderTitle.Font = Enum.Font.GothamBold
-LoaderTitle.TextSize = 25
-LoaderTitle.TextColor3 = Color3.new(1, 1, 1)
-LoaderTitle.BackgroundTransparency = 1
-LoaderTitle.ZIndex = 10001
-
--- INTERFACE PRINCIPAL
+-- Botão Flutuante
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
 OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
 OpenBtn.Text = "S"
 OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextSize = 24
-OpenBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+OpenBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 10)
+local BtnStroke = Instance.new("UIStroke", OpenBtn)
+BtnStroke.Color = Color3.fromRGB(45, 45, 45)
 
+-- Painel Principal
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 220, 0, 190)
 MainFrame.Position = UDim2.new(0.5, -110, 0.5, -95)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 MainFrame.Visible = false
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
 
--- Botões de Toggle
 local function createToggle(name, pos, key)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 190, 0, 45)
@@ -75,40 +59,27 @@ createToggle("AUTO UPGRADE", UDim2.new(0, 15, 0, 110), "Upgrade")
 
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- --- ANIMAÇÃO DE ENTRADA CORRIGIDA ---
+-- --- LÓGICA DE UPGRADE (FIX COMPLETO) ---
 task.spawn(function()
-    task.wait(0.5)
-    -- Efeito de fade no texto
-    for i = 1, 3 do
-        TweenService:Create(LoaderTitle, TweenInfo.new(0.3), {TextTransparency = 0.5}):Play()
-        task.wait(0.3)
-        TweenService:Create(LoaderTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-        task.wait(0.3)
-    end
-    
-    -- Sumir tela de carregamento
-    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
-    TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    fade:Play()
-    fade.Completed:Wait()
-    
-    LoadingFrame.Visible = false
-    OpenBtn.Visible = true
-    MainFrame.Visible = true
-    MainFrame:TweenSize(UDim2.new(0, 220, 0, 190), "Out", "Back", 0.3, true)
-end)
-
--- --- LÓGICA DE UPGRADE (FIX SLOTS) ---
-spawn(function()
     while true do
-        task.wait(1)
+        task.wait(1.5)
         if States.Upgrade then
             pcall(function()
-                local plot = workspace.Map.Plots.Plot2:FindFirstChild("Plot")
-                local slots = plot and (plot:FindFirstChild("Slots") or plot:FindFirstChild("slots"))
-                if slots then
+                -- Busca o caminho ignorando se é Plot1, Plot2 ou Plot3
+                local plots = workspace.Map:FindFirstChild("Plots")
+                local myPlot = nil
+                
+                -- Detecta qual plot tem o seu nome ou está ativo
+                for _, p in pairs(plots:GetChildren()) do
+                    if p:FindFirstChild("Plot") and p.Plot:FindFirstChild("Slots") then
+                        myPlot = p.Plot.Slots
+                        break
+                    end
+                end
+
+                if myPlot then
                     for i = 1, 16 do
-                        local slot = slots:FindFirstChild(tostring(i))
+                        local slot = myPlot:FindFirstChild(tostring(i))
                         if slot and slot:FindFirstChild("UpgradeSing") then
                             firetouchinterest(Player.Character.HumanoidRootPart, slot.UpgradeSing, 0)
                             firetouchinterest(Player.Character.HumanoidRootPart, slot.UpgradeSing, 1)
@@ -126,7 +97,7 @@ local function AgressiveCollect(npc)
     local npcPart = npc:FindFirstChildWhichIsA("BasePart") or npc:FindFirstChild("HumanoidRootPart")
     if root and npcPart then
         root.CFrame = CFrame.new(npcPart.Position.X, SafeHeight, npcPart.Position.Z)
-        for i = 1, 5 do
+        for i = 1, 3 do
             firetouchinterest(root, npcPart, 0)
             firetouchinterest(root, npcPart, 1)
             task.wait()
@@ -134,11 +105,11 @@ local function AgressiveCollect(npc)
     end
 end
 
-spawn(function()
+task.spawn(function()
     while true do
         task.wait(0.1)
         if States.Farm then
-            pcall(function()
+            local success, err = pcall(function()
                 local targetNPC = nil
                 for _, v in pairs(npcFolder:GetChildren()) do
                     if v:FindFirstChildWhichIsA("BasePart") or v:FindFirstChild("HumanoidRootPart") then
