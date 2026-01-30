@@ -13,50 +13,40 @@ local npcFolder = workspace.Map.Zones.Field.NPC
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "ShadowHub_Premium"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999 -- Garante que apareça por cima de tudo
 
--- --- TELA DE CARREGAMENTO ESTILIZADA ---
+-- --- TELA DE CARREGAMENTO (FORÇADA) ---
 local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 0)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+LoadingFrame.Size = UDim2.new(1, 0, 1, 50) -- Cobre a tela toda
+LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 LoadingFrame.BorderSizePixel = 0
-LoadingFrame.ZIndex = 100
+LoadingFrame.ZIndex = 1000
 
-local Blur = Instance.new("BlurEffect", Lighting)
-Blur.Size = 0
-
-local LoaderContent = Instance.new("Frame", LoadingFrame)
-LoaderContent.Size = UDim2.new(0, 300, 0, 100)
-LoaderContent.Position = UDim2.new(0.5, -150, 0.5, -50)
-LoaderContent.BackgroundTransparency = 1
-LoaderContent.ZIndex = 101
-
-local LoaderTitle = Instance.new("TextLabel", LoaderContent)
-LoaderTitle.Size = UDim2.new(1, 0, 0, 40)
+local LoaderTitle = Instance.new("TextLabel", LoadingFrame)
+LoaderTitle.Size = UDim2.new(1, 0, 0, 100)
+LoaderTitle.Position = UDim2.new(0, 0, 0.4, 0)
 LoaderTitle.Text = "EXECUTANDO SHADOW HUB"
 LoaderTitle.Font = Enum.Font.GothamBold
-LoaderTitle.TextSize = 20
+LoaderTitle.TextSize = 22
 LoaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoaderTitle.BackgroundTransparency = 1
-LoaderTitle.ZIndex = 102
+LoaderTitle.ZIndex = 1001
 
-local ProgressBarBack = Instance.new("Frame", LoaderContent)
-ProgressBarBack.Size = UDim2.new(0, 250, 0, 4)
-ProgressBarBack.Position = UDim2.new(0.5, -125, 0.7, 0)
+local ProgressBarBack = Instance.new("Frame", LoadingFrame)
+ProgressBarBack.Size = UDim2.new(0, 280, 0, 4)
+ProgressBarBack.Position = UDim2.new(0.5, -140, 0.55, 0)
 ProgressBarBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ProgressBarBack.BorderSizePixel = 0
-ProgressBarBack.ZIndex = 102
+ProgressBarBack.ZIndex = 1001
 
 local ProgressBarFill = Instance.new("Frame", ProgressBarBack)
 ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
 ProgressBarFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 ProgressBarFill.BorderSizePixel = 0
-ProgressBarFill.ZIndex = 103
+ProgressBarFill.ZIndex = 1002
 
-local FillGlow = Instance.new("UIStroke", ProgressBarFill)
-FillGlow.Color = Color3.fromRGB(0, 180, 255)
-FillGlow.Thickness = 2
-
--- --- INTERFACE PRINCIPAL ---
+-- --- INTERFACE PRINCIPAL (INVISÍVEL NO INÍCIO) ---
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
 OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
@@ -67,9 +57,6 @@ OpenBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 10)
-local BtnStroke = Instance.new("UIStroke", OpenBtn)
-BtnStroke.Color = Color3.fromRGB(40, 40, 40)
-BtnStroke.Thickness = 2
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 220, 0, 140)
@@ -78,19 +65,8 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.Visible = false
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(60, 60, 60)
-MainStroke.Thickness = 1.5
 
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "SHADOW HUB"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.BackgroundTransparency = 1
-
--- Funções Visuais
+-- Botão de Toggle
 local function createToggle(name, pos, key)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 190, 0, 45)
@@ -106,38 +82,40 @@ local function createToggle(name, pos, key)
 
     btn.MouseButton1Click:Connect(function()
         States[key] = not States[key]
-        if States[key] then
-            btnStroke.Color = Color3.fromRGB(0, 120, 255)
-            btn.TextColor3 = Color3.fromRGB(0, 180, 255)
-        else
-            btnStroke.Color = Color3.fromRGB(45, 45, 45)
-            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
+        btn.TextColor3 = States[key] and Color3.fromRGB(0, 180, 255) or Color3.fromRGB(200, 200, 200)
+        btnStroke.Color = States[key] and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(45, 45, 45)
     end)
 end
 
-createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 55), "Farm")
+createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 60), "Farm")
 
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- --- LÓGICA DE CARREGAMENTO ---
+-- --- SEQUÊNCIA DE CARREGAMENTO CORRIGIDA ---
 task.spawn(function()
-    TweenService:Create(Blur, TweenInfo.new(1), {Size = 20}):Play()
-    task.wait(0.5)
-    ProgressBarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 2, true)
-    task.wait(2.2)
+    -- Garante que a tela de carregamento apareça por 2.5 segundos
+    ProgressBarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.5, true)
     
-    TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    -- Efeito de texto piscando
+    for i = 1, 5 do
+        LoaderTitle.TextTransparency = 0.5
+        task.wait(0.25)
+        LoaderTitle.TextTransparency = 0
+        task.wait(0.25)
+    end
+    
+    -- Fade Out
+    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
     TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
     TweenService:Create(ProgressBarBack, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     TweenService:Create(ProgressBarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(Blur, TweenInfo.new(0.5), {Size = 0}):Play()
     
-    task.wait(0.5)
-    LoadingFrame:Destroy()
-    Blur:Destroy()
+    fade:Play()
+    fade.Completed:Wait()
+    
+    LoadingFrame.Visible = false
     OpenBtn.Visible = true
     MainFrame.Visible = true
 end)
