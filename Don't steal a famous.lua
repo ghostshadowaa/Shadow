@@ -13,11 +13,11 @@ local npcFolder = workspace.Map.Zones.Field.NPC
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "ShadowHub_Premium"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999 -- Garante que apareça por cima de tudo
+ScreenGui.DisplayOrder = 999 
 
--- --- TELA DE CARREGAMENTO (FORÇADA) ---
+-- --- TELA DE CARREGAMENTO (MANTIDA) ---
 local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 50) -- Cobre a tela toda
+LoadingFrame.Size = UDim2.new(1, 0, 1, 50)
 LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
 LoadingFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 LoadingFrame.BorderSizePixel = 0
@@ -46,7 +46,7 @@ ProgressBarFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 ProgressBarFill.BorderSizePixel = 0
 ProgressBarFill.ZIndex = 1002
 
--- --- INTERFACE PRINCIPAL (INVISÍVEL NO INÍCIO) ---
+-- --- INTERFACE PRINCIPAL (AJUSTADA) ---
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
 OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
@@ -59,14 +59,14 @@ OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 10)
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 140)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
+MainFrame.Size = UDim2.new(0, 220, 0, 175) -- Aumentado para o novo botão
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -87)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.Visible = false
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
 
--- Botão de Toggle
+-- Função para Criar Botão de Alternância (Toggle)
 local function createToggle(name, pos, key)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 190, 0, 45)
@@ -87,34 +87,58 @@ local function createToggle(name, pos, key)
     end)
 end
 
-createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 60), "Farm")
+-- Função para Criar Botão de Clique Único (Action)
+local function createActionButton(name, pos, actionFunc)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 190, 0, 45)
+    btn.Position = pos
+    btn.Text = name
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 13
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(60, 60, 60)
+
+    btn.MouseButton1Click:Connect(function()
+        actionFunc()
+        -- Efeito visual rápido de clique
+        btn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        task.wait(0.1)
+        btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    end)
+end
+
+-- --- ADICIONANDO BOTÕES ---
+createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 35), "Farm")
+
+createActionButton("TELEPORT TO BASE", UDim2.new(0, 15, 0, 95), function()
+    local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = BaseCFrame
+    end
+end)
 
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- --- SEQUÊNCIA DE CARREGAMENTO CORRIGIDA ---
+-- --- SEQUÊNCIA DE CARREGAMENTO (MANTIDA) ---
 task.spawn(function()
-    -- Garante que a tela de carregamento apareça por 2.5 segundos
     ProgressBarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.5, true)
-    
-    -- Efeito de texto piscando
     for i = 1, 5 do
         LoaderTitle.TextTransparency = 0.5
         task.wait(0.25)
         LoaderTitle.TextTransparency = 0
         task.wait(0.25)
     end
-    
-    -- Fade Out
     local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
     TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
     TweenService:Create(ProgressBarBack, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     TweenService:Create(ProgressBarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    
     fade:Play()
     fade.Completed:Wait()
-    
     LoadingFrame.Visible = false
     OpenBtn.Visible = true
     MainFrame.Visible = true
