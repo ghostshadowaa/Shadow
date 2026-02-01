@@ -1,4 +1,4 @@
--- Shadow Hub: Definitive Elite Edition (New GUI)
+-- Shadow Hub: Definitive Elite Edition (Fast Collect Fix)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -22,7 +22,7 @@ local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "ShadowHub_Ultimate_V3"
 ScreenGui.ResetOnSpawn = false
 
--- --- TELA DE CARREGAMENTO (MANTIDA POIS VC GOSTOU) ---
+-- --- TELA DE CARREGAMENTO ---
 local LoadingFrame = Instance.new("Frame", ScreenGui)
 LoadingFrame.Size = UDim2.new(1, 0, 1, 100)
 LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
@@ -51,7 +51,7 @@ BarFill.Size = UDim2.new(0, 0, 1, 0)
 BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 BarFill.ZIndex = 1002
 
--- --- GUI PRINCIPAL (MELHORADA) ---
+-- --- GUI PRINCIPAL ---
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 240, 0, 140)
 MainFrame.Position = UDim2.new(0.5, -120, 0.5, -70)
@@ -74,7 +74,6 @@ local Line = Instance.new("Frame", MainFrame)
 Line.Size = UDim2.new(0.8, 0, 0, 1)
 Line.Position = UDim2.new(0.1, 0, 0, 35)
 Line.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Line.BorderSizePixel = 0
 
 local FarmBtn = Instance.new("TextButton", MainFrame)
 FarmBtn.Size = UDim2.new(0, 210, 0, 45)
@@ -83,7 +82,6 @@ FarmBtn.Text = "AUTO FARM"
 FarmBtn.Font = Enum.Font.GothamSemibold
 FarmBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 FarmBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-FarmBtn.AutoButtonColor = false
 Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(0, 8)
 local BtnStroke = Instance.new("UIStroke", FarmBtn)
 BtnStroke.Color = Color3.fromRGB(30, 30, 30)
@@ -101,52 +99,65 @@ local OpenStroke = Instance.new("UIStroke", OpenBtn)
 OpenStroke.Color = Color3.fromRGB(0, 150, 255)
 OpenStroke.Thickness = 2
 
--- --- LÓGICA DE INTERAÇÃO DO HUB ---
+-- --- LÓGICA DE INTERAÇÃO ---
 FarmBtn.MouseButton1Click:Connect(function()
     States.Farm = not States.Farm
     local targetColor = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
-    local targetBg = States.Farm and Color3.fromRGB(0, 40, 80) or Color3.fromRGB(20, 20, 20)
-    
-    TweenService:Create(FarmBtn, TweenInfo.new(0.3), {TextColor3 = targetColor, BackgroundColor3 = targetBg}):Play()
+    TweenService:Create(FarmBtn, TweenInfo.new(0.3), {TextColor3 = targetColor}):Play()
     TweenService:Create(BtnStroke, TweenInfo.new(0.3), {Color = targetColor}):Play()
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    TweenService:Create(OpenBtn, TweenInfo.new(0.2), {Rotation = MainFrame.Visible and 90 or 0}):Play()
 end)
 
--- --- LÓGICA DE COLETA E PRIORIDADE (MANTIDAS) ---
+-- --- MÉTODO DE COLETA OTIMIZADO ---
 local function interact(npc)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     local part = npc:FindFirstChildWhichIsA("BasePart", true)
+    
     if root and part then
-        for i = 1, 3 do
-            firetouchinterest(root, part, 0)
-            firetouchinterest(root, part, 1)
-            for _, p in pairs(npc:GetDescendants()) do
-                if p:IsA("ProximityPrompt") then p.HoldDuration = 0 fireproximityprompt(p) end
-            end
+        -- Toque Instantâneo
+        firetouchinterest(root, part, 0)
+        firetouchinterest(root, part, 1)
+        
+        -- Interação com ProximityPrompt sem delay
+        local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt then
+            prompt.HoldDuration = 0
+            fireproximityprompt(prompt)
         end
     end
 end
 
+-- --- SCANNER DE PRIORIDADE ---
 local function GetBestNPC()
-    local children = workspace.Map.Zones.Field.NPC:GetChildren()
+    local npcFolder = workspace.Map.Zones.Field.NPC
+    local children = npcFolder:GetChildren()
+    if #children == 0 then return nil end
+
     local sorted = {}
     for _, r in ipairs(PriorityList) do sorted[r] = {} end
+
     for _, npc in pairs(children) do
         local txt = ""
         for _, d in pairs(npc:GetDescendants()) do
             if d:IsA("TextLabel") then txt = txt .. " " .. d.Text
             elseif d:IsA("StringValue") then txt = txt .. " " .. d.Value end
         end
+        
         for _, r in ipairs(PriorityList) do
-            if string.find(string.lower(txt), string.lower(r)) then table.insert(sorted[r], npc) break end
+            if string.find(string.lower(txt), string.lower(r)) then
+                table.insert(sorted[r], npc)
+                break
+            end
         end
     end
+
     for _, r in ipairs(PriorityList) do
-        if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])] end
+        if #sorted[r] > 0 then
+            return sorted[r][math.random(1, #sorted[r])]
+        end
     end
     return children[math.random(1, #children)]
 end
@@ -155,34 +166,47 @@ end
 task.spawn(function()
     BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.2, true)
     task.wait(2.4)
-    TweenService:Create(LoadingFrame, TweenInfo.new(0.8), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    task.wait(0.8)
     LoadingFrame.Visible = false
     OpenBtn.Visible = true
 end)
 
--- --- LOOP DE FARM ---
+-- --- LOOP DE FARM (VELOCIDADE MÁXIMA) ---
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.05) -- Loop mais agressivo
         if States.Farm then
             pcall(function()
                 local target = GetBestNPC()
                 if target then
                     local part = target:FindFirstChildWhichIsA("BasePart", true)
                     local char = Player.Character
-                    if part and char and char:FindFirstChild("HumanoidRootPart") then
-                        -- Ir
-                        local dist1 = (char.HumanoidRootPart.Position - part.Position).Magnitude
-                        local t1 = TweenService:Create(char.HumanoidRootPart, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
-                        t1:Play() t1.Completed:Wait()
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    
+                    if part and root then
+                        -- Noclip durante o percurso
+                        local nc = RunService.Stepped:Connect(function()
+                            for _, v in pairs(char:GetDescendants()) do
+                                if v:IsA("BasePart") then v.CanCollide = false end
+                            end
+                        end)
+
+                        -- Tween para o NPC
+                        local dist1 = (root.Position - part.Position).Magnitude
+                        local t1 = TweenService:Create(root, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
+                        t1:Play()
+                        t1.Completed:Wait()
+                        
+                        -- Coleta Imediata
                         interact(target)
-                        task.wait(0.2)
-                        -- Voltar
-                        local dist2 = (char.HumanoidRootPart.Position - BasePos).Magnitude
-                        local t2 = TweenService:Create(char.HumanoidRootPart, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
-                        t2:Play() t2.Completed:Wait()
+                        task.wait(0.05) -- Delay mínimo apenas para o server registrar
+                        
+                        -- Tween de Volta
+                        local dist2 = (root.Position - BasePos).Magnitude
+                        local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
+                        t2:Play()
+                        t2.Completed:Wait()
+                        
+                        nc:Disconnect() -- Desliga noclip ao chegar na base
                     end
                 end
             end)
