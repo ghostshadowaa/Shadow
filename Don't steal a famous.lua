@@ -1,183 +1,191 @@
--- Shadow Hub: Premium Stealth & Agressive TP
+-- Shadow Hub: Definitive Elite Edition (New GUI)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
--- CONFIGURAÇÕES DE LÓGICA
+-- CONFIGURAÇÕES
 local States = { Farm = false }
-local BaseCFrame = CFrame.new(-29.6688538, -1.23751986, 57.1520157, 0, -1, 0, 0, 0, -1, 1, 0, 0)
-local SafeHeight = -1.23751986 
-local npcFolder = workspace.Map.Zones.Field.NPC
+local BasePos = Vector3.new(-29.6688538, 3, 57.1520157) 
+local TweenSpeed = 250 
+local SafeHeightOffset = 3
 
--- --- INTERFACE VISUAL SHADOW HUB ---
+-- HIERARQUIA DE PRIORIDADE (OldGen no TOPO)
+local PriorityList = {
+    "OldGen", "Secret", "Youtuber god", 
+    "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
+}
+
+-- --- INTERFACE ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_Premium"
+ScreenGui.Name = "ShadowHub_Ultimate_V3"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999 
 
--- --- TELA DE CARREGAMENTO (MANTIDA) ---
+-- --- TELA DE CARREGAMENTO (MANTIDA POIS VC GOSTOU) ---
 local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 50)
+LoadingFrame.Size = UDim2.new(1, 0, 1, 100)
 LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-LoadingFrame.BorderSizePixel = 0
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(3, 3, 3)
 LoadingFrame.ZIndex = 1000
 
 local LoaderTitle = Instance.new("TextLabel", LoadingFrame)
 LoaderTitle.Size = UDim2.new(1, 0, 0, 100)
 LoaderTitle.Position = UDim2.new(0, 0, 0.4, 0)
-LoaderTitle.Text = "EXECUTANDO SHADOW HUB"
+LoaderTitle.Text = "SHADOW HUB"
 LoaderTitle.Font = Enum.Font.GothamBold
-LoaderTitle.TextSize = 22
-LoaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoaderTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
+LoaderTitle.TextSize = 50
 LoaderTitle.BackgroundTransparency = 1
 LoaderTitle.ZIndex = 1001
 
-local ProgressBarBack = Instance.new("Frame", LoadingFrame)
-ProgressBarBack.Size = UDim2.new(0, 280, 0, 4)
-ProgressBarBack.Position = UDim2.new(0.5, -140, 0.55, 0)
-ProgressBarBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ProgressBarBack.BorderSizePixel = 0
-ProgressBarBack.ZIndex = 1001
+local BarBack = Instance.new("Frame", LoadingFrame)
+BarBack.Size = UDim2.new(0, 300, 0, 3)
+BarBack.Position = UDim2.new(0.5, -150, 0.52, 0)
+BarBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+BarBack.BorderSizePixel = 0
+BarBack.ZIndex = 1001
 
-local ProgressBarFill = Instance.new("Frame", ProgressBarBack)
-ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
-ProgressBarFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-ProgressBarFill.BorderSizePixel = 0
-ProgressBarFill.ZIndex = 1002
+local BarFill = Instance.new("Frame", BarBack)
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+BarFill.ZIndex = 1002
 
--- --- INTERFACE PRINCIPAL (AJUSTADA) ---
+-- --- GUI PRINCIPAL (MELHORADA) ---
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 240, 0, 140)
+MainFrame.Position = UDim2.new(0.5, -120, 0.5, -70)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MainFrame.Visible = false
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Color3.fromRGB(0, 150, 255)
+MainStroke.Thickness = 1.5
+
+local GuiTitle = Instance.new("TextLabel", MainFrame)
+GuiTitle.Size = UDim2.new(1, 0, 0, 40)
+GuiTitle.Text = "SHADOW HUB"
+GuiTitle.Font = Enum.Font.GothamBold
+GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
+GuiTitle.TextSize = 18
+GuiTitle.BackgroundTransparency = 1
+
+local Line = Instance.new("Frame", MainFrame)
+Line.Size = UDim2.new(0.8, 0, 0, 1)
+Line.Position = UDim2.new(0.1, 0, 0, 35)
+Line.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Line.BorderSizePixel = 0
+
+local FarmBtn = Instance.new("TextButton", MainFrame)
+FarmBtn.Size = UDim2.new(0, 210, 0, 45)
+FarmBtn.Position = UDim2.new(0, 15, 0, 55)
+FarmBtn.Text = "AUTO FARM"
+FarmBtn.Font = Enum.Font.GothamSemibold
+FarmBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+FarmBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+FarmBtn.AutoButtonColor = false
+Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(0, 8)
+local BtnStroke = Instance.new("UIStroke", FarmBtn)
+BtnStroke.Color = Color3.fromRGB(30, 30, 30)
+
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
 OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
 OpenBtn.Text = "S"
 OpenBtn.Font = Enum.Font.GothamBold
-OpenBtn.TextSize = 24
-OpenBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 OpenBtn.Visible = false
-Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+local OpenStroke = Instance.new("UIStroke", OpenBtn)
+OpenStroke.Color = Color3.fromRGB(0, 150, 255)
+OpenStroke.Thickness = 2
 
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 175) -- Aumentado para o novo botão
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -87)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-MainFrame.BackgroundTransparency = 0.15
-MainFrame.Visible = false
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
-
--- Função para Criar Botão de Alternância (Toggle)
-local function createToggle(name, pos, key)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0, 190, 0, 45)
-    btn.Position = pos
-    btn.Text = name
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 13
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-    local btnStroke = Instance.new("UIStroke", btn)
-    btnStroke.Color = Color3.fromRGB(45, 45, 45)
-
-    btn.MouseButton1Click:Connect(function()
-        States[key] = not States[key]
-        btn.TextColor3 = States[key] and Color3.fromRGB(0, 180, 255) or Color3.fromRGB(200, 200, 200)
-        btnStroke.Color = States[key] and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(45, 45, 45)
-    end)
-end
-
--- Função para Criar Botão de Clique Único (Action)
-local function createActionButton(name, pos, actionFunc)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0, 190, 0, 45)
-    btn.Position = pos
-    btn.Text = name
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 13
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-    local btnStroke = Instance.new("UIStroke", btn)
-    btnStroke.Color = Color3.fromRGB(60, 60, 60)
-
-    btn.MouseButton1Click:Connect(function()
-        actionFunc()
-        -- Efeito visual rápido de clique
-        btn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-        task.wait(0.1)
-        btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    end)
-end
-
--- --- ADICIONANDO BOTÕES ---
-createToggle("AGRESSIVE FARM", UDim2.new(0, 15, 0, 35), "Farm")
-
-createActionButton("TELEPORT TO BASE", UDim2.new(0, 15, 0, 95), function()
-    local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        root.CFrame = BaseCFrame
-    end
+-- --- LÓGICA DE INTERAÇÃO DO HUB ---
+FarmBtn.MouseButton1Click:Connect(function()
+    States.Farm = not States.Farm
+    local targetColor = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
+    local targetBg = States.Farm and Color3.fromRGB(0, 40, 80) or Color3.fromRGB(20, 20, 20)
+    
+    TweenService:Create(FarmBtn, TweenInfo.new(0.3), {TextColor3 = targetColor, BackgroundColor3 = targetBg}):Play()
+    TweenService:Create(BtnStroke, TweenInfo.new(0.3), {Color = targetColor}):Play()
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
+    TweenService:Create(OpenBtn, TweenInfo.new(0.2), {Rotation = MainFrame.Visible and 90 or 0}):Play()
 end)
 
--- --- SEQUÊNCIA DE CARREGAMENTO (MANTIDA) ---
-task.spawn(function()
-    ProgressBarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.5, true)
-    for i = 1, 5 do
-        LoaderTitle.TextTransparency = 0.5
-        task.wait(0.25)
-        LoaderTitle.TextTransparency = 0
-        task.wait(0.25)
-    end
-    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
-    TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    TweenService:Create(ProgressBarBack, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(ProgressBarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    fade:Play()
-    fade.Completed:Wait()
-    LoadingFrame.Visible = false
-    OpenBtn.Visible = true
-    MainFrame.Visible = true
-end)
-
--- --- LÓGICA DE FARM (MANTIDA) ---
-local function AgressiveCollect(npc)
+-- --- LÓGICA DE COLETA E PRIORIDADE (MANTIDAS) ---
+local function interact(npc)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    local npcRoot = npc:FindFirstChildWhichIsA("BasePart") or npc:FindFirstChild("HumanoidRootPart")
-    if root and npcRoot then
-        root.CFrame = CFrame.new(npcRoot.Position.X, SafeHeight, npcRoot.Position.Z)
-        for i = 1, 5 do
-            firetouchinterest(root, npcRoot, 0)
-            firetouchinterest(root, npcRoot, 1)
-            task.wait()
+    local part = npc:FindFirstChildWhichIsA("BasePart", true)
+    if root and part then
+        for i = 1, 3 do
+            firetouchinterest(root, part, 0)
+            firetouchinterest(root, part, 1)
+            for _, p in pairs(npc:GetDescendants()) do
+                if p:IsA("ProximityPrompt") then p.HoldDuration = 0 fireproximityprompt(p) end
+            end
         end
-        local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if prompt then fireproximityprompt(prompt) end
     end
 end
 
-spawn(function()
+local function GetBestNPC()
+    local children = workspace.Map.Zones.Field.NPC:GetChildren()
+    local sorted = {}
+    for _, r in ipairs(PriorityList) do sorted[r] = {} end
+    for _, npc in pairs(children) do
+        local txt = ""
+        for _, d in pairs(npc:GetDescendants()) do
+            if d:IsA("TextLabel") then txt = txt .. " " .. d.Text
+            elseif d:IsA("StringValue") then txt = txt .. " " .. d.Value end
+        end
+        for _, r in ipairs(PriorityList) do
+            if string.find(string.lower(txt), string.lower(r)) then table.insert(sorted[r], npc) break end
+        end
+    end
+    for _, r in ipairs(PriorityList) do
+        if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])] end
+    end
+    return children[math.random(1, #children)]
+end
+
+-- --- ANIMAÇÃO DE LOADING ---
+task.spawn(function()
+    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.2, true)
+    task.wait(2.4)
+    TweenService:Create(LoadingFrame, TweenInfo.new(0.8), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(LoaderTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    task.wait(0.8)
+    LoadingFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+-- --- LOOP DE FARM ---
+task.spawn(function()
     while true do
         task.wait(0.1)
         if States.Farm then
-            local targetNPC = nil
-            for _, v in pairs(npcFolder:GetChildren()) do
-                if v:FindFirstChildWhichIsA("BasePart") or v:FindFirstChild("HumanoidRootPart") then
-                    targetNPC = v
-                    break
+            pcall(function()
+                local target = GetBestNPC()
+                if target then
+                    local part = target:FindFirstChildWhichIsA("BasePart", true)
+                    local char = Player.Character
+                    if part and char and char:FindFirstChild("HumanoidRootPart") then
+                        -- Ir
+                        local dist1 = (char.HumanoidRootPart.Position - part.Position).Magnitude
+                        local t1 = TweenService:Create(char.HumanoidRootPart, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
+                        t1:Play() t1.Completed:Wait()
+                        interact(target)
+                        task.wait(0.2)
+                        -- Voltar
+                        local dist2 = (char.HumanoidRootPart.Position - BasePos).Magnitude
+                        local t2 = TweenService:Create(char.HumanoidRootPart, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
+                        t2:Play() t2.Completed:Wait()
+                    end
                 end
-            end
-            if targetNPC then
-                AgressiveCollect(targetNPC)
-                task.wait(0.15) 
-                local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-                if root then root.CFrame = BaseCFrame end
-                task.wait(0.4)
-            end
+            end)
         end
     end
 end)
