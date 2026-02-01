@@ -1,4 +1,4 @@
--- Shadow Hub: Definitive Elite Edition (Ultra Stability Fix)
+-- Shadow Hub: Definitive Elite Edition (Aura Target Fix)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -6,8 +6,9 @@ local RunService = game:GetService("RunService")
 -- CONFIGURAÇÕES
 local States = { Farm = false }
 local BasePos = Vector3.new(-29.6688538, 3, 57.1520157) 
-local TweenSpeed = 80 -- VELOCIDADE SEGURA (Evita que o servidor ignore o toque)
-local SafeHeightOffset = 3.5 -- Um pouco mais alto para evitar prender no chão
+local TweenSpeed = 100 -- Velocidade equilibrada
+local SafeHeightOffset = 3.5
+local AuraRadius = 15 -- Raio da aura de coleta ao chegar no destino
 
 -- HIERARQUIA DE PRIORIDADE
 local PriorityList = {
@@ -15,9 +16,9 @@ local PriorityList = {
     "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
 }
 
--- --- INTERFACE (MANTIDA) ---
+-- --- INTERFACE ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_UltraSafe"
+ScreenGui.Name = "ShadowHub_AuraTarget"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
@@ -28,11 +29,10 @@ MainFrame.Visible = false
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(0, 150, 255)
-MainStroke.Thickness = 1.5
 
 local GuiTitle = Instance.new("TextLabel", MainFrame)
 GuiTitle.Size = UDim2.new(1, 0, 0, 40)
-GuiTitle.Text = "SHADOW HUB (SAFE)"
+GuiTitle.Text = "SHADOW HUB (AURA)"
 GuiTitle.Font = Enum.Font.GothamBold
 GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
 GuiTitle.TextSize = 18
@@ -45,9 +45,7 @@ FarmBtn.Text = "AUTO FARM"
 FarmBtn.Font = Enum.Font.GothamSemibold
 FarmBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 FarmBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Instance.new("UICorner", FarmBtn).CornerRadius = UDim.new(0, 8)
-local BtnStroke = Instance.new("UIStroke", FarmBtn)
-BtnStroke.Color = Color3.fromRGB(30, 30, 30)
+Instance.new("UICorner", FarmBtn)
 
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -60,35 +58,36 @@ Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 local OpenStroke = Instance.new("UIStroke", OpenBtn)
 OpenStroke.Color = Color3.fromRGB(0, 150, 255)
 
--- --- LÓGICA DE INTERAÇÃO OTIMIZADA ---
-FarmBtn.MouseButton1Click:Connect(function()
-    States.Farm = not States.Farm
-    local targetColor = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
-    TweenService:Create(FarmBtn, TweenInfo.new(0.3), {TextColor3 = targetColor}):Play()
-    TweenService:Create(BtnStroke, TweenInfo.new(0.3), {Color = targetColor}):Play()
-end)
-
-OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
-
-local function interact(npc)
+-- --- LÓGICA DE INTERAÇÃO (AURA) ---
+local function collectAura()
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    local part = npc:FindFirstChildWhichIsA("BasePart", true)
-    
-    if root and part then
-        -- Spam de Toque mais longo para servidores lentos
-        for i = 1, 5 do
-            firetouchinterest(root, part, 0)
-            firetouchinterest(root, part, 1)
-            task.wait(0.02)
-        end
-        
-        local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
-        if prompt then
-            prompt.HoldDuration = 0
-            fireproximityprompt(prompt)
+    local npcs = workspace.Map.Zones.Field:FindFirstChild("NPC")
+    if root and npcs then
+        for _, npc in pairs(npcs:GetChildren()) do
+            local part = npc:FindFirstChildWhichIsA("BasePart", true)
+            if part then
+                local distance = (root.Position - part.Position).Magnitude
+                if distance <= AuraRadius then
+                    -- Interação Instantânea
+                    firetouchinterest(root, part, 0)
+                    firetouchinterest(root, part, 1)
+                    local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then
+                        prompt.HoldDuration = 0
+                        fireproximityprompt(prompt)
+                    end
+                end
+            end
         end
     end
 end
+
+FarmBtn.MouseButton1Click:Connect(function()
+    States.Farm = not States.Farm
+    FarmBtn.TextColor3 = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
+end)
+
+OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
 local function GetBestNPC()
     local folder = workspace.Map.Zones.Field:FindFirstChild("NPC")
@@ -117,10 +116,10 @@ local function GetBestNPC()
     return children[math.random(1, #children)]
 end
 
--- --- LOOP DE FARM ULTRA ESTÁVEL ---
+-- --- LOOP DE FARM COM AURA ---
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.1)
         if States.Farm then
             pcall(function()
                 local target = GetBestNPC()
@@ -130,22 +129,22 @@ task.spawn(function()
                 if target and root then
                     local part = target:FindFirstChildWhichIsA("BasePart", true)
                     if part then
-                        -- IR
-                        local dist1 = (root.Position - part.Position).Magnitude
-                        local t1 = TweenService:Create(root, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
+                        -- MOVIMENTO ATÉ O ALVO
+                        local dist = (root.Position - part.Position).Magnitude
+                        local t1 = TweenService:Create(root, TweenInfo.new(dist/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
                         t1:Play()
                         t1.Completed:Wait()
                         
-                        task.wait(0.3) -- Espera o servidor confirmar que você chegou
-                        interact(target)
-                        task.wait(0.3) -- Espera o servidor confirmar a coleta
+                        -- ATIVA AURA DE COLETA AO CHEGAR
+                        task.wait(0.2)
+                        collectAura() -- Pega o alvo e qualquer outro NPC próximo
+                        task.wait(0.2)
                         
-                        -- VOLTAR
+                        -- RETORNO
                         local dist2 = (root.Position - BasePos).Magnitude
                         local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
                         t2:Play()
                         t2.Completed:Wait()
-                        task.wait(0.2) -- Pausa na base para resetar
                     end
                 end
             end)
