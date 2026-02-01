@@ -1,4 +1,4 @@
--- Shadow Hub: Definitive Elite Edition (Stability Fix)
+-- Shadow Hub: Definitive Elite Edition (Ultra Stability Fix)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -6,50 +6,20 @@ local RunService = game:GetService("RunService")
 -- CONFIGURAÇÕES
 local States = { Farm = false }
 local BasePos = Vector3.new(-29.6688538, 3, 57.1520157) 
-local TweenSpeed = 150 -- VELOCIDADE REDUZIDA PARA ESTABILIDADE (Ideal: 120-180)
-local SafeHeightOffset = 3
+local TweenSpeed = 80 -- VELOCIDADE SEGURA (Evita que o servidor ignore o toque)
+local SafeHeightOffset = 3.5 -- Um pouco mais alto para evitar prender no chão
 
--- HIERARQUIA DE PRIORIDADE (OldGen no TOPO)
+-- HIERARQUIA DE PRIORIDADE
 local PriorityList = {
     "OldGen", "Secret", "Youtuber god", 
     "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
 }
 
--- --- INTERFACE ---
+-- --- INTERFACE (MANTIDA) ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_Stable_V3"
+ScreenGui.Name = "ShadowHub_UltraSafe"
 ScreenGui.ResetOnSpawn = false
 
--- --- TELA DE CARREGAMENTO ---
-local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 100)
-LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(3, 3, 3)
-LoadingFrame.ZIndex = 1000
-
-local LoaderTitle = Instance.new("TextLabel", LoadingFrame)
-LoaderTitle.Size = UDim2.new(1, 0, 0, 100)
-LoaderTitle.Position = UDim2.new(0, 0, 0.4, 0)
-LoaderTitle.Text = "SHADOW HUB"
-LoaderTitle.Font = Enum.Font.GothamBold
-LoaderTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
-LoaderTitle.TextSize = 50
-LoaderTitle.BackgroundTransparency = 1
-LoaderTitle.ZIndex = 1001
-
-local BarBack = Instance.new("Frame", LoadingFrame)
-BarBack.Size = UDim2.new(0, 300, 0, 3)
-BarBack.Position = UDim2.new(0.5, -150, 0.52, 0)
-BarBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-BarBack.BorderSizePixel = 0
-BarBack.ZIndex = 1001
-
-local BarFill = Instance.new("Frame", BarBack)
-BarFill.Size = UDim2.new(0, 0, 1, 0)
-BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-BarFill.ZIndex = 1002
-
--- --- GUI PRINCIPAL ---
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 240, 0, 140)
 MainFrame.Position = UDim2.new(0.5, -120, 0.5, -70)
@@ -62,7 +32,7 @@ MainStroke.Thickness = 1.5
 
 local GuiTitle = Instance.new("TextLabel", MainFrame)
 GuiTitle.Size = UDim2.new(1, 0, 0, 40)
-GuiTitle.Text = "SHADOW HUB"
+GuiTitle.Text = "SHADOW HUB (SAFE)"
 GuiTitle.Font = Enum.Font.GothamBold
 GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
 GuiTitle.TextSize = 18
@@ -86,12 +56,11 @@ OpenBtn.Text = "S"
 OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 local OpenStroke = Instance.new("UIStroke", OpenBtn)
 OpenStroke.Color = Color3.fromRGB(0, 150, 255)
 
--- --- LÓGICA DE INTERAÇÃO ---
+-- --- LÓGICA DE INTERAÇÃO OTIMIZADA ---
 FarmBtn.MouseButton1Click:Connect(function()
     States.Farm = not States.Farm
     local targetColor = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
@@ -99,19 +68,18 @@ FarmBtn.MouseButton1Click:Connect(function()
     TweenService:Create(BtnStroke, TweenInfo.new(0.3), {Color = targetColor}):Play()
 end)
 
-OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
 local function interact(npc)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     local part = npc:FindFirstChildWhichIsA("BasePart", true)
     
     if root and part then
-        -- Multi-toque para garantir registro no servidor
-        for i = 1, 3 do
+        -- Spam de Toque mais longo para servidores lentos
+        for i = 1, 5 do
             firetouchinterest(root, part, 0)
             firetouchinterest(root, part, 1)
+            task.wait(0.02)
         end
         
         local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -123,7 +91,9 @@ local function interact(npc)
 end
 
 local function GetBestNPC()
-    local children = workspace.Map.Zones.Field.NPC:GetChildren()
+    local folder = workspace.Map.Zones.Field:FindFirstChild("NPC")
+    if not folder then return nil end
+    local children = folder:GetChildren()
     local sorted = {}
     for _, r in ipairs(PriorityList) do sorted[r] = {} end
 
@@ -144,45 +114,38 @@ local function GetBestNPC()
     for _, r in ipairs(PriorityList) do
         if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])] end
     end
-    return children[#children > 0 and math.random(1, #children) or nil]
+    return children[math.random(1, #children)]
 end
 
--- --- ANIMAÇÃO DE LOADING ---
-task.spawn(function()
-    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 2.2, true)
-    task.wait(2.4)
-    LoadingFrame.Visible = false
-    OpenBtn.Visible = true
-end)
-
--- --- LOOP DE FARM ESTABILIZADO ---
+-- --- LOOP DE FARM ULTRA ESTÁVEL ---
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.5)
         if States.Farm then
             pcall(function()
                 local target = GetBestNPC()
-                if target then
+                local char = Player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if target and root then
                     local part = target:FindFirstChildWhichIsA("BasePart", true)
-                    local char = Player.Character
-                    local root = char and char:FindFirstChild("HumanoidRootPart")
-                    
-                    if part and root then
-                        -- Ir (Tween)
+                    if part then
+                        -- IR
                         local dist1 = (root.Position - part.Position).Magnitude
                         local t1 = TweenService:Create(root, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
                         t1:Play()
                         t1.Completed:Wait()
                         
-                        task.wait(0.15) -- TEMPO DE ESPERA PARA O SERVIDOR REGISTRAR A CHEGADA
+                        task.wait(0.3) -- Espera o servidor confirmar que você chegou
                         interact(target)
-                        task.wait(0.15) -- TEMPO DE ESPERA PARA REGISTRAR A COLETA
+                        task.wait(0.3) -- Espera o servidor confirmar a coleta
                         
-                        -- Voltar (Tween)
+                        -- VOLTAR
                         local dist2 = (root.Position - BasePos).Magnitude
                         local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
                         t2:Play()
                         t2.Completed:Wait()
+                        task.wait(0.2) -- Pausa na base para resetar
                     end
                 end
             end)
