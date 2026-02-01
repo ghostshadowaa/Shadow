@@ -1,14 +1,12 @@
--- Shadow Hub: Definitive Elite Edition (Fast Collect Fix)
+-- Shadow Hub: Definitive Elite Edition (Stability Fix)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 
 -- CONFIGURAÇÕES
 local States = { Farm = false }
 local BasePos = Vector3.new(-29.6688538, 3, 57.1520157) 
-local TweenSpeed = 250 
+local TweenSpeed = 150 -- VELOCIDADE REDUZIDA PARA ESTABILIDADE (Ideal: 120-180)
 local SafeHeightOffset = 3
 
 -- HIERARQUIA DE PRIORIDADE (OldGen no TOPO)
@@ -19,7 +17,7 @@ local PriorityList = {
 
 -- --- INTERFACE ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_Ultimate_V3"
+ScreenGui.Name = "ShadowHub_Stable_V3"
 ScreenGui.ResetOnSpawn = false
 
 -- --- TELA DE CARREGAMENTO ---
@@ -70,11 +68,6 @@ GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
 GuiTitle.TextSize = 18
 GuiTitle.BackgroundTransparency = 1
 
-local Line = Instance.new("Frame", MainFrame)
-Line.Size = UDim2.new(0.8, 0, 0, 1)
-Line.Position = UDim2.new(0.1, 0, 0, 35)
-Line.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-
 local FarmBtn = Instance.new("TextButton", MainFrame)
 FarmBtn.Size = UDim2.new(0, 210, 0, 45)
 FarmBtn.Position = UDim2.new(0, 15, 0, 55)
@@ -97,7 +90,6 @@ OpenBtn.Visible = false
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 local OpenStroke = Instance.new("UIStroke", OpenBtn)
 OpenStroke.Color = Color3.fromRGB(0, 150, 255)
-OpenStroke.Thickness = 2
 
 -- --- LÓGICA DE INTERAÇÃO ---
 FarmBtn.MouseButton1Click:Connect(function()
@@ -111,17 +103,17 @@ OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- --- MÉTODO DE COLETA OTIMIZADO ---
 local function interact(npc)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     local part = npc:FindFirstChildWhichIsA("BasePart", true)
     
     if root and part then
-        -- Toque Instantâneo
-        firetouchinterest(root, part, 0)
-        firetouchinterest(root, part, 1)
+        -- Multi-toque para garantir registro no servidor
+        for i = 1, 3 do
+            firetouchinterest(root, part, 0)
+            firetouchinterest(root, part, 1)
+        end
         
-        -- Interação com ProximityPrompt sem delay
         local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
         if prompt then
             prompt.HoldDuration = 0
@@ -130,12 +122,8 @@ local function interact(npc)
     end
 end
 
--- --- SCANNER DE PRIORIDADE ---
 local function GetBestNPC()
-    local npcFolder = workspace.Map.Zones.Field.NPC
-    local children = npcFolder:GetChildren()
-    if #children == 0 then return nil end
-
+    local children = workspace.Map.Zones.Field.NPC:GetChildren()
     local sorted = {}
     for _, r in ipairs(PriorityList) do sorted[r] = {} end
 
@@ -145,7 +133,6 @@ local function GetBestNPC()
             if d:IsA("TextLabel") then txt = txt .. " " .. d.Text
             elseif d:IsA("StringValue") then txt = txt .. " " .. d.Value end
         end
-        
         for _, r in ipairs(PriorityList) do
             if string.find(string.lower(txt), string.lower(r)) then
                 table.insert(sorted[r], npc)
@@ -155,11 +142,9 @@ local function GetBestNPC()
     end
 
     for _, r in ipairs(PriorityList) do
-        if #sorted[r] > 0 then
-            return sorted[r][math.random(1, #sorted[r])]
-        end
+        if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])] end
     end
-    return children[math.random(1, #children)]
+    return children[#children > 0 and math.random(1, #children) or nil]
 end
 
 -- --- ANIMAÇÃO DE LOADING ---
@@ -170,10 +155,10 @@ task.spawn(function()
     OpenBtn.Visible = true
 end)
 
--- --- LOOP DE FARM (VELOCIDADE MÁXIMA) ---
+-- --- LOOP DE FARM ESTABILIZADO ---
 task.spawn(function()
     while true do
-        task.wait(0.05) -- Loop mais agressivo
+        task.wait(0.1)
         if States.Farm then
             pcall(function()
                 local target = GetBestNPC()
@@ -183,30 +168,21 @@ task.spawn(function()
                     local root = char and char:FindFirstChild("HumanoidRootPart")
                     
                     if part and root then
-                        -- Noclip durante o percurso
-                        local nc = RunService.Stepped:Connect(function()
-                            for _, v in pairs(char:GetDescendants()) do
-                                if v:IsA("BasePart") then v.CanCollide = false end
-                            end
-                        end)
-
-                        -- Tween para o NPC
+                        -- Ir (Tween)
                         local dist1 = (root.Position - part.Position).Magnitude
                         local t1 = TweenService:Create(root, TweenInfo.new(dist1/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
                         t1:Play()
                         t1.Completed:Wait()
                         
-                        -- Coleta Imediata
+                        task.wait(0.15) -- TEMPO DE ESPERA PARA O SERVIDOR REGISTRAR A CHEGADA
                         interact(target)
-                        task.wait(0.05) -- Delay mínimo apenas para o server registrar
+                        task.wait(0.15) -- TEMPO DE ESPERA PARA REGISTRAR A COLETA
                         
-                        -- Tween de Volta
+                        -- Voltar (Tween)
                         local dist2 = (root.Position - BasePos).Magnitude
                         local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
                         t2:Play()
                         t2.Completed:Wait()
-                        
-                        nc:Disconnect() -- Desliga noclip ao chegar na base
                     end
                 end
             end)
