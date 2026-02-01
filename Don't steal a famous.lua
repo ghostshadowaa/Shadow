@@ -1,4 +1,4 @@
--- Shadow Hub: Definitive Elite Edition (New GUI)
+--- Shadow Hub: Definitive Elite Edition (New GUI)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
