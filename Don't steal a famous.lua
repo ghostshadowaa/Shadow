@@ -1,14 +1,14 @@
--- Shadow Hub: Definitive Elite Edition (Aura Target Fix)
+-- Shadow Hub: Definitive Elite Edition (Dynamic Spawn Fix)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 -- CONFIGURAÇÕES
 local States = { Farm = false }
-local BasePos = Vector3.new(-29.6688538, 3, 57.1520157) 
-local TweenSpeed = 100 -- Velocidade equilibrada
+local SavedSpawnCFrame = nil -- Será definida automaticamente ao nascer
+local TweenSpeed = 100 
 local SafeHeightOffset = 3.5
-local AuraRadius = 15 -- Raio da aura de coleta ao chegar no destino
+local AuraRadius = 15 
 
 -- HIERARQUIA DE PRIORIDADE
 local PriorityList = {
@@ -16,9 +16,21 @@ local PriorityList = {
     "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
 }
 
+-- --- FUNÇÃO PARA CAPTURAR O SPAWN ---
+local function CaptureSpawn()
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    task.wait(0.5) -- Pequeno delay para garantir que o spawn foi concluído
+    SavedSpawnCFrame = root.CFrame
+    print("Shadow Hub: Nova Base Salva!")
+end
+
+Player.CharacterAdded:Connect(CaptureSpawn)
+if Player.Character then task.spawn(CaptureSpawn) end
+
 -- --- INTERFACE ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_AuraTarget"
+ScreenGui.Name = "ShadowHub_Dynamic"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
@@ -32,7 +44,7 @@ MainStroke.Color = Color3.fromRGB(0, 150, 255)
 
 local GuiTitle = Instance.new("TextLabel", MainFrame)
 GuiTitle.Size = UDim2.new(1, 0, 0, 40)
-GuiTitle.Text = "SHADOW HUB (AURA)"
+GuiTitle.Text = "SHADOW HUB (SPAWN)"
 GuiTitle.Font = Enum.Font.GothamBold
 GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
 GuiTitle.TextSize = 18
@@ -58,17 +70,16 @@ Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 local OpenStroke = Instance.new("UIStroke", OpenBtn)
 OpenStroke.Color = Color3.fromRGB(0, 150, 255)
 
--- --- LÓGICA DE INTERAÇÃO (AURA) ---
+-- --- LÓGICA DE COLETA ---
 local function collectAura()
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    local npcs = workspace.Map.Zones.Field:FindFirstChild("NPC")
+    local npcs = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Zones") and workspace.Map.Zones.Field:FindFirstChild("NPC")
     if root and npcs then
         for _, npc in pairs(npcs:GetChildren()) do
             local part = npc:FindFirstChildWhichIsA("BasePart", true)
             if part then
                 local distance = (root.Position - part.Position).Magnitude
                 if distance <= AuraRadius then
-                    -- Interação Instantânea
                     firetouchinterest(root, part, 0)
                     firetouchinterest(root, part, 1)
                     local prompt = npc:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -90,7 +101,7 @@ end)
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
 local function GetBestNPC()
-    local folder = workspace.Map.Zones.Field:FindFirstChild("NPC")
+    local folder = workspace:FindFirstChild("Map") and workspace.Map.Zones.Field:FindFirstChild("NPC")
     if not folder then return nil end
     local children = folder:GetChildren()
     local sorted = {}
@@ -116,33 +127,31 @@ local function GetBestNPC()
     return children[math.random(1, #children)]
 end
 
--- --- LOOP DE FARM COM AURA ---
+-- --- LOOP DE FARM ---
 task.spawn(function()
     while true do
         task.wait(0.1)
-        if States.Farm then
+        if States.Farm and SavedSpawnCFrame then
             pcall(function()
                 local target = GetBestNPC()
-                local char = Player.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
                 
                 if target and root then
                     local part = target:FindFirstChildWhichIsA("BasePart", true)
                     if part then
-                        -- MOVIMENTO ATÉ O ALVO
+                        -- IDA
                         local dist = (root.Position - part.Position).Magnitude
                         local t1 = TweenService:Create(root, TweenInfo.new(dist/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)})
                         t1:Play()
                         t1.Completed:Wait()
                         
-                        -- ATIVA AURA DE COLETA AO CHEGAR
                         task.wait(0.2)
-                        collectAura() -- Pega o alvo e qualquer outro NPC próximo
+                        collectAura()
                         task.wait(0.2)
                         
-                        -- RETORNO
-                        local dist2 = (root.Position - BasePos).Magnitude
-                        local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(BasePos)})
+                        -- VOLTA PARA O SPAWN SALVO
+                        local dist2 = (root.Position - SavedSpawnCFrame.Position).Magnitude
+                        local t2 = TweenService:Create(root, TweenInfo.new(dist2/TweenSpeed, Enum.EasingStyle.Linear), {CFrame = SavedSpawnCFrame})
                         t2:Play()
                         t2.Completed:Wait()
                     end
