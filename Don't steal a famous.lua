@@ -44,7 +44,7 @@ MainStroke.Color = Color3.fromRGB(0, 150, 255)
 
 local GuiTitle = Instance.new("TextLabel", MainFrame)
 GuiTitle.Size = UDim2.new(1, 0, 0, 40)
-GuiTitle.Text = "SHADOW HUB (SPAWN)"
+GuiTitle.Text = "SHADOW HUB "
 GuiTitle.Font = Enum.Font.GothamBold
 GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
 GuiTitle.TextSize = 18
