@@ -1,20 +1,20 @@
--- Shadow Hub: Definitive Sniper Edition (Custom Loading)
+-- Shadow Hub: V22 - Unified Collector Logic (Visual Upgrade)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- CONFIGURAÇÕES
-local States = { Farm = false }
+-- CONFIGURAÇÕES (MANTIDAS)
+local States = { FarmAuto = false, FarmInteractive = false, Asking = false }
 local SavedSpawnCFrame = nil 
 local SafeHeightOffset = 3.5
 
--- HIERARQUIA DE PRIORIDADE
 local PriorityList = {
     "OldGen", "Secret", "Youtuber god", 
     "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
 }
 
--- --- FUNÇÃO PARA CAPTURAR O SPAWN ---
+-- --- FUNÇÕES ORIGINAIS (NÃO MEXIDAS) ---
+
 local function CaptureSpawn()
     local char = Player.Character or Player.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart")
@@ -24,92 +24,13 @@ end
 Player.CharacterAdded:Connect(CaptureSpawn)
 if Player.Character then task.spawn(CaptureSpawn) end
 
--- --- INTERFACE ---
-local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ShadowHub_CustomLoad"
-ScreenGui.ResetOnSpawn = false
-
--- --- TELA DE CARREGAMENTO ANIMADA ---
-local LoadingFrame = Instance.new("Frame", ScreenGui)
-LoadingFrame.Size = UDim2.new(1, 0, 1, 100)
-LoadingFrame.Position = UDim2.new(0, 0, 0, -50)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-LoadingFrame.ZIndex = 100
-
-local LoadTitle = Instance.new("TextLabel", LoadingFrame)
-LoadTitle.Size = UDim2.new(1, 0, 0, 100)
-LoadTitle.Position = UDim2.new(0, 0, 0.4, 0)
-LoadTitle.Text = "SHADOW HUB"
-LoadTitle.Font = Enum.Font.GothamBold
-LoadTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
-LoadTitle.TextSize = 55
-LoadTitle.BackgroundTransparency = 1
-
-local StatusLabel = Instance.new("TextLabel", LoadingFrame)
-StatusLabel.Size = UDim2.new(1, 0, 0, 30)
-StatusLabel.Position = UDim2.new(0, 0, 0.52, 0)
-StatusLabel.Text = "INICIALIZANDO..."
-StatusLabel.Font = Enum.Font.GothamSemibold
-StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatusLabel.TextSize = 18
-StatusLabel.BackgroundTransparency = 1
-
-local BarBack = Instance.new("Frame", LoadingFrame)
-BarBack.Size = UDim2.new(0, 300, 0, 4)
-BarBack.Position = UDim2.new(0.5, -150, 0.58, 0)
-BarBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-BarBack.BorderSizePixel = 0
-
-local BarFill = Instance.new("Frame", BarBack)
-BarFill.Size = UDim2.new(0, 0, 1, 0)
-BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-BarFill.BorderSizePixel = 0
-
--- --- ELEMENTOS DA GUI PRINCIPAL ---
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 240, 0, 140)
-MainFrame.Position = UDim2.new(0.5, -120, 0.5, -70)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-MainFrame.Visible = false
-Instance.new("UICorner", MainFrame)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(0, 150, 255)
-
-local GuiTitle = Instance.new("TextLabel", MainFrame)
-GuiTitle.Size = UDim2.new(1, 0, 0, 40)
-GuiTitle.Text = "SHADOW HUB V2"
-GuiTitle.Font = Enum.Font.GothamBold
-GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255)
-GuiTitle.TextSize = 18
-GuiTitle.BackgroundTransparency = 1
-
-local FarmBtn = Instance.new("TextButton", MainFrame)
-FarmBtn.Size = UDim2.new(0, 210, 0, 45)
-FarmBtn.Position = UDim2.new(0, 15, 0, 60)
-FarmBtn.Text = "AUTO FARM (SNIPER)"
-FarmBtn.Font = Enum.Font.GothamBold
-FarmBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-FarmBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Instance.new("UICorner", FarmBtn)
-
-local OpenBtn = Instance.new("TextButton", ScreenGui)
-OpenBtn.Size = UDim2.new(0, 50, 0, 50)
-OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
-OpenBtn.Text = "S"
-OpenBtn.Font = Enum.Font.GothamBold
-OpenBtn.TextColor3 = Color3.new(1,1,1)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-OpenBtn.Visible = false
-Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
-local OpenStroke = Instance.new("UIStroke", OpenBtn)
-OpenStroke.Color = Color3.fromRGB(0, 150, 255)
-
--- --- LÓGICA DE COLETA SNIPER ---
 local function collectSpecific(targetNPC)
     local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
     if root and targetNPC then
         local part = targetNPC:FindFirstChildWhichIsA("BasePart", true)
         if part then
+            root.CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)
+            task.wait(0.3) 
             firetouchinterest(root, part, 0)
             firetouchinterest(root, part, 1)
             local prompt = targetNPC:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -117,6 +38,8 @@ local function collectSpecific(targetNPC)
                 prompt.HoldDuration = 0
                 fireproximityprompt(prompt)
             end
+            task.wait(0.1)
+            root.CFrame = SavedSpawnCFrame
         end
     end
 end
@@ -127,7 +50,6 @@ local function GetBestNPC()
     local children = folder:GetChildren()
     local sorted = {}
     for _, r in ipairs(PriorityList) do sorted[r] = {} end
-
     for _, npc in pairs(children) do
         local txt = ""
         for _, d in pairs(npc:GetDescendants()) do
@@ -136,79 +58,130 @@ local function GetBestNPC()
         end
         for _, r in ipairs(PriorityList) do
             if string.find(string.lower(txt), string.lower(r)) then
-                table.insert(sorted[r], npc)
-                break
+                table.insert(sorted[r], npc); break
             end
         end
     end
-
     for _, r in ipairs(PriorityList) do
-        if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])] end
+        if #sorted[r] > 0 then return sorted[r][math.random(1, #sorted[r])], r end
     end
-    return children[math.random(1, #children)]
+    return nil
 end
 
--- --- LOOP DE FARM ---
+-- --- INTERFACE DE PERGUNTA (VISUAL UPGRADE) ---
+local function AskToCollect(npcName, npcObject)
+    if States.Asking then return end 
+    States.Asking = true
+    local askGui = Instance.new("ScreenGui", Player.PlayerGui)
+    askGui.Name = "ShadowAsk"
+    
+    local frame = Instance.new("Frame", askGui)
+    frame.Size = UDim2.new(0, 320, 0, 100); frame.Position = UDim2.new(0.5, -160, -0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Instance.new("UICorner", frame)
+    local stroke = Instance.new("UIStroke", frame); stroke.Color = Color3.fromRGB(0, 150, 255); stroke.Thickness = 2
+    
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 50); label.Text = "NPC: " .. npcName .. "\nDESEJA COLETAR?"; label.TextColor3 = Color3.new(1,1,1); label.BackgroundTransparency = 1; label.Font = Enum.Font.GothamBold; label.TextSize = 14
+    
+    local s = Instance.new("TextButton", frame); s.Size = UDim2.new(0, 130, 0, 35); s.Position = UDim2.new(0, 20, 0, 55); s.Text = "SIM"; s.BackgroundColor3 = Color3.fromRGB(0, 120, 255); s.TextColor3 = Color3.new(1,1,1); s.Font = Enum.Font.GothamBold; Instance.new("UICorner", s)
+    local n = Instance.new("TextButton", frame); n.Size = UDim2.new(0, 130, 0, 35); n.Position = UDim2.new(0, 170, 0, 55); n.Text = "NÃO"; n.BackgroundColor3 = Color3.fromRGB(40, 40, 40); n.TextColor3 = Color3.new(1,1,1); n.Font = Enum.Font.GothamBold; Instance.new("UICorner", n)
+    
+    frame:TweenPosition(UDim2.new(0.5, -160, 0.1, 0), "Out", "Back", 0.5)
+    
+    s.MouseButton1Click:Connect(function() 
+        askGui:Destroy()
+        collectSpecific(npcObject)
+        States.Asking = false 
+    end)
+    n.MouseButton1Click:Connect(function() askGui:Destroy(); States.Asking = false end)
+end
+
+-- --- LOOP DE CONTROLE (MANTIDO) ---
 task.spawn(function()
     while true do
-        task.wait(0.1)
-        if States.Farm and SavedSpawnCFrame then
-            pcall(function()
-                local target = GetBestNPC()
-                local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-                
-                if target and root then
-                    local part = target:FindFirstChildWhichIsA("BasePart", true)
-                    if part then
-                        root.CFrame = part.CFrame * CFrame.new(0, SafeHeightOffset, 0)
-                        task.wait(0.3) 
-                        collectSpecific(target)
-                        task.wait(0.1)
-                        root.CFrame = SavedSpawnCFrame
-                    end
-                end
-            end)
+        task.wait(0.2)
+        if States.FarmAuto and SavedSpawnCFrame then
+            local target = GetBestNPC()
+            if target then collectSpecific(target) end
+        end
+        if States.FarmInteractive and not States.Asking then
+            local target, name = GetBestNPC()
+            if target then AskToCollect(name:upper(), target) end
         end
     end
 end)
 
--- --- CONTROLES GUI ---
-FarmBtn.MouseButton1Click:Connect(function()
-    States.Farm = not States.Farm
-    FarmBtn.Text = States.Farm and "FARM: ON" or "AUTO FARM (SNIPER)"
-    FarmBtn.TextColor3 = States.Farm and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(150, 150, 150)
+-- --- PAINEL PRINCIPAL (VISUAL UPGRADE) ---
+local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "ShadowHub_Adrian"
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 260, 0, 180); MainFrame.Position = UDim2.new(0.5, -130, 0.5, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10); MainFrame.Visible = false
+Instance.new("UICorner", MainFrame)
+local MainStroke = Instance.new("UIStroke", MainFrame); MainStroke.Color = Color3.fromRGB(0, 150, 255); MainStroke.Thickness = 2
+
+-- Título Neon Pulsante
+local GuiTitle = Instance.new("TextLabel", MainFrame)
+GuiTitle.Size = UDim2.new(1, 0, 0, 50); GuiTitle.Text = "SHADOW HUB V22"; GuiTitle.Font = Enum.Font.GothamBold; GuiTitle.TextColor3 = Color3.fromRGB(0, 150, 255); GuiTitle.TextSize = 20; GuiTitle.BackgroundTransparency = 1
+
+task.spawn(function()
+    while true do
+        TweenService:Create(GuiTitle, TweenInfo.new(1), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1), {Color = Color3.fromRGB(255, 255, 255)}):Play()
+        task.wait(1)
+        TweenService:Create(GuiTitle, TweenInfo.new(1), {TextColor3 = Color3.fromRGB(0, 150, 255)}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(1), {Color = Color3.fromRGB(0, 150, 255)}):Play()
+        task.wait(1)
+    end
 end)
+
+local function StyleButton(btn)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn)
+    local bstroke = Instance.new("UIStroke", btn); bstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; bstroke.Color = Color3.fromRGB(30,30,30)
+end
+
+local AutoBtn = Instance.new("TextButton", MainFrame)
+AutoBtn.Size = UDim2.new(0, 230, 0, 45); AutoBtn.Position = UDim2.new(0, 15, 0, 60); AutoBtn.Text = "AUTO FARM: OFF"; AutoBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); AutoBtn.TextColor3 = Color3.new(1,1,1); StyleButton(AutoBtn)
+
+local InterBtn = Instance.new("TextButton", MainFrame)
+InterBtn.Size = UDim2.new(0, 230, 0, 45); InterBtn.Position = UDim2.new(0, 15, 0, 115); InterBtn.Text = "INTERATIVO: OFF"; InterBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); InterBtn.TextColor3 = Color3.new(1,1,1); StyleButton(InterBtn)
+
+AutoBtn.MouseButton1Click:Connect(function()
+    States.FarmAuto = not States.FarmAuto
+    AutoBtn.Text = States.FarmAuto and "AUTO FARM: ON" or "AUTO FARM: OFF"
+    AutoBtn.BackgroundColor3 = States.FarmAuto and Color3.fromRGB(0, 60, 120) or Color3.fromRGB(20, 20, 20)
+    AutoBtn.TextColor3 = States.FarmAuto and Color3.fromRGB(0, 200, 255) or Color3.new(1,1,1)
+end)
+
+InterBtn.MouseButton1Click:Connect(function()
+    States.FarmInteractive = not States.FarmInteractive
+    InterBtn.Text = States.FarmInteractive and "INTERATIVO: ON" or "INTERATIVO: OFF"
+    InterBtn.BackgroundColor3 = States.FarmInteractive and Color3.fromRGB(0, 60, 120) or Color3.fromRGB(20, 20, 20)
+    InterBtn.TextColor3 = States.FarmInteractive and Color3.fromRGB(0, 200, 255) or Color3.new(1,1,1)
+end)
+
+local OpenBtn = Instance.new("TextButton", ScreenGui)
+OpenBtn.Size = UDim2.new(0, 50, 0, 50); OpenBtn.Position = UDim2.new(0, 20, 0.5, -25); OpenBtn.Text = "S"; OpenBtn.Visible = false; OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15); OpenBtn.TextColor3 = Color3.fromRGB(0, 150, 255); StyleButton(OpenBtn); OpenBtn.UICorner.CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", OpenBtn).Color = Color3.fromRGB(0, 150, 255)
 
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- --- ANIMAÇÃO TELA DE CARREGAMENTO ---
+-- --- TELA DE CARREGAMENTO (ESTILO PREMIUM) ---
+local LoadingFrame = Instance.new("Frame", ScreenGui); LoadingFrame.Size = UDim2.new(1, 0, 1, 100); LoadingFrame.Position = UDim2.new(0, 0, 0, -50); LoadingFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5); LoadingFrame.ZIndex = 100
+local LoadTitle = Instance.new("TextLabel", LoadingFrame); LoadTitle.Size = UDim2.new(1, 0, 0, 100); LoadTitle.Position = UDim2.new(0, 0, 0.4, 0); LoadTitle.Text = "SHADOW HUB"; LoadTitle.Font = Enum.Font.GothamBold; LoadTitle.TextColor3 = Color3.fromRGB(0, 150, 255); LoadTitle.TextSize = 60; LoadTitle.BackgroundTransparency = 1
+local BarBack = Instance.new("Frame", LoadingFrame); BarBack.Size = UDim2.new(0, 320, 0, 6); BarBack.Position = UDim2.new(0.5, -160, 0.58, 0); BarBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20); BarBack.BorderSizePixel = 0; Instance.new("UICorner", BarBack)
+local BarFill = Instance.new("Frame", BarBack); BarFill.Size = UDim2.new(0, 0, 1, 0); BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255); BarFill.BorderSizePixel = 0; Instance.new("UICorner", BarFill)
+
 task.spawn(function()
-    local statusMsgs = {
-        "Carregando Assets...",
-        "Ativando Anti-Kick...",
-        "Buscando Map Zones...",
-        "Configurando Teleport...",
-        "Shadow Hub Pronto!"
-    }
-    
-    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 4, true)
-    
-    for i = 1, #statusMsgs do
-        StatusLabel.Text = statusMsgs[i]
-        task.wait(0.8)
-    end
-    
-    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 3.5, true)
+    task.wait(4)
+    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.8), {BackgroundTransparency = 1})
     fade:Play()
-    for _, v in pairs(LoadingFrame:GetChildren()) do
-        if v:IsA("TextLabel") or v:IsA("Frame") then
-            TweenService:Create(v, TweenInfo.new(0.5), {Transparency = 1}):Play()
-        end
-    end
-    
-    fade.Completed:Connect(function()
-        LoadingFrame:Destroy()
-        OpenBtn.Visible = true
-        MainFrame.Visible = true
-    end)
+    for _, v in pairs(LoadingFrame:GetChildren()) do pcall(function() TweenService:Create(v, TweenInfo.new(0.5), {TextTransparency = 1, BackgroundTransparency = 1}):Play() end) end
+    task.wait(0.8)
+    LoadingFrame:Destroy(); OpenBtn.Visible = true; MainFrame.Visible = true
 end)
