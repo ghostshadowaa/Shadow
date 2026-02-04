@@ -1,4 +1,4 @@
--- Shadow Hub: V22 - Unified Collector Logic (Visual Upgrade)
+-- Shadow Hub: V22 - Unified Collector Logic (Instant Edition)
 local Player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -13,7 +13,7 @@ local PriorityList = {
     "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common"
 }
 
--- --- FUNÇÕES ORIGINAIS (NÃO MEXIDAS) ---
+-- --- FUNÇÕES ORIGINAIS ---
 
 local function CaptureSpawn()
     local char = Player.Character or Player.CharacterAdded:Wait()
@@ -68,7 +68,7 @@ local function GetBestNPC()
     return nil
 end
 
--- --- INTERFACE DE PERGUNTA (VISUAL UPGRADE) ---
+-- --- INTERFACE DE PERGUNTA ---
 local function AskToCollect(npcName, npcObject)
     if States.Asking then return end 
     States.Asking = true
@@ -96,7 +96,7 @@ local function AskToCollect(npcName, npcObject)
     n.MouseButton1Click:Connect(function() askGui:Destroy(); States.Asking = false end)
 end
 
--- --- LOOP DE CONTROLE (MANTIDO) ---
+-- --- LOOP DE CONTROLE ---
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -111,14 +111,14 @@ task.spawn(function()
     end
 end)
 
--- --- PAINEL PRINCIPAL (VISUAL UPGRADE) ---
+-- --- PAINEL PRINCIPAL ---
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "ShadowHub_Adrian"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 260, 0, 180); MainFrame.Position = UDim2.new(0.5, -130, 0.5, -90)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10); MainFrame.Visible = false
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10); MainFrame.Visible = true -- VISÍVEL AO CARREGAR
 Instance.new("UICorner", MainFrame)
 local MainStroke = Instance.new("UIStroke", MainFrame); MainStroke.Color = Color3.fromRGB(0, 150, 255); MainStroke.Thickness = 2
 
@@ -165,23 +165,7 @@ InterBtn.MouseButton1Click:Connect(function()
 end)
 
 local OpenBtn = Instance.new("TextButton", ScreenGui)
-OpenBtn.Size = UDim2.new(0, 50, 0, 50); OpenBtn.Position = UDim2.new(0, 20, 0.5, -25); OpenBtn.Text = "S"; OpenBtn.Visible = false; OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15); OpenBtn.TextColor3 = Color3.fromRGB(0, 150, 255); StyleButton(OpenBtn); OpenBtn.UICorner.CornerRadius = UDim.new(1, 0)
+OpenBtn.Size = UDim2.new(0, 50, 0, 50); OpenBtn.Position = UDim2.new(0, 20, 0.5, -25); OpenBtn.Text = "S"; OpenBtn.Visible = true; OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15); OpenBtn.TextColor3 = Color3.fromRGB(0, 150, 255); StyleButton(OpenBtn); OpenBtn.UICorner.CornerRadius = UDim.new(1, 0)
 Instance.new("UIStroke", OpenBtn).Color = Color3.fromRGB(0, 150, 255)
 
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
-
--- --- TELA DE CARREGAMENTO (ESTILO PREMIUM) ---
-local LoadingFrame = Instance.new("Frame", ScreenGui); LoadingFrame.Size = UDim2.new(1, 0, 1, 100); LoadingFrame.Position = UDim2.new(0, 0, 0, -50); LoadingFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5); LoadingFrame.ZIndex = 100
-local LoadTitle = Instance.new("TextLabel", LoadingFrame); LoadTitle.Size = UDim2.new(1, 0, 0, 100); LoadTitle.Position = UDim2.new(0, 0, 0.4, 0); LoadTitle.Text = "SHADOW HUB"; LoadTitle.Font = Enum.Font.GothamBold; LoadTitle.TextColor3 = Color3.fromRGB(0, 150, 255); LoadTitle.TextSize = 60; LoadTitle.BackgroundTransparency = 1
-local BarBack = Instance.new("Frame", LoadingFrame); BarBack.Size = UDim2.new(0, 320, 0, 6); BarBack.Position = UDim2.new(0.5, -160, 0.58, 0); BarBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20); BarBack.BorderSizePixel = 0; Instance.new("UICorner", BarBack)
-local BarFill = Instance.new("Frame", BarBack); BarFill.Size = UDim2.new(0, 0, 1, 0); BarFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255); BarFill.BorderSizePixel = 0; Instance.new("UICorner", BarFill)
-
-task.spawn(function()
-    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quart", 3.5, true)
-    task.wait(4)
-    local fade = TweenService:Create(LoadingFrame, TweenInfo.new(0.8), {BackgroundTransparency = 1})
-    fade:Play()
-    for _, v in pairs(LoadingFrame:GetChildren()) do pcall(function() TweenService:Create(v, TweenInfo.new(0.5), {TextTransparency = 1, BackgroundTransparency = 1}):Play() end) end
-    task.wait(0.8)
-    LoadingFrame:Destroy(); OpenBtn.Visible = true; MainFrame.Visible = true
-end)
