@@ -1,4 +1,4 @@
--- Shadow Hub V29 - PRO Edition
+-- Shadow Hub V30 - Adrian PRO (Melee/Sword Selector)
 local Player = game.Players.LocalPlayer
 local VIM = game:GetService("VirtualInputManager")
 local RS = game:GetService("ReplicatedStorage")
@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 
 -- --- CONFIGURAÇÕES ---
 _G.AutoFarm = false
-_G.SelectedWeapon = "Combat" -- Padrão
+_G.SelectedWeapon = "Melee" -- Melee ou Sword
 local NPC_QUEST_CFRAME = CFrame.new(-483.650757, 31.3953781, -811.273682)
 local BANDITS_SPAWN_CFRAME = CFrame.new(-450, 31, -750) 
 
@@ -20,22 +20,23 @@ local function HasQuest()
     return success and result
 end
 
--- Sistema de Equipamento por Seleção
+-- Seleção de Arma Profissional
 local function EquipSelected()
     local char = GetChar()
     local backpack = Player.Backpack
-    local weaponName = _G.SelectedWeapon
+    local weaponType = _G.SelectedWeapon
     
     local current = char:FindFirstChildOfClass("Tool")
-    if current and (current.Name:find(weaponName) or (weaponName == "Espada" and current.Name:find("Katana"))) then
-        return current
+    if current then
+        if weaponType == "Sword" and (current.Name:lower():find("katana") or current.Name:lower():find("sword")) then return current end
+        if weaponType == "Melee" and (current.Name:lower():find("combat") or current.Name:lower():find("melee")) then return current end
     end
 
     for _, tool in pairs(backpack:GetChildren()) do
-        if weaponName == "Espada" and (tool.Name:find("Katana") or tool.Name:find("Sword")) then
+        if weaponType == "Sword" and (tool.Name:lower():find("katana") or tool.Name:lower():find("sword")) then
             tool.Parent = char
             return tool
-        elseif weaponName == "Combat" and tool.Name == "Combat" then
+        elseif weaponType == "Melee" and (tool.Name:lower():find("combat") or tool.Name:lower():find("melee")) then
             tool.Parent = char
             return tool
         end
@@ -51,42 +52,41 @@ pcall(function()
     end)
 end)
 
--- --- INTERFACE GRÁFICA ---
-local sg = Instance.new("ScreenGui", Player.PlayerGui); sg.Name = "ShadowHub_V29"; sg.ResetOnSpawn = false
+-- --- INTERFACE ---
+local sg = Instance.new("ScreenGui", Player.PlayerGui); sg.Name = "ShadowHub_V30"; sg.ResetOnSpawn = false
 local Main = Instance.new("Frame", sg)
-Main.Size = UDim2.new(0, 230, 0, 200); Main.Position = UDim2.new(0.5, -115, 0.4, 0)
-Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25); Main.Active = true; Main.Draggable = true
+Main.Size = UDim2.new(0, 230, 0, 180); Main.Position = UDim2.new(0.5, -115, 0.4, 0)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20); Main.Active = true; Main.Draggable = true
 Instance.new("UICorner", Main)
 
 local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "SHADOW HUB PRO V29"; Title.TextColor3 = Color3.new(1,1,1); Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "SHADOW HUB V30"; Title.TextColor3 = Color3.new(1,1,1); Title.BackgroundTransparency = 1; Title.Font = Enum.Font.GothamBold
 
--- Botão de Seleção de Arma
+-- Seletor Melee/Sword
 local WeaponBtn = Instance.new("TextButton", Main)
-WeaponBtn.Size = UDim2.new(1, -20, 0, 35); WeaponBtn.Position = UDim2.new(0, 10, 0, 45)
-WeaponBtn.Text = "ARMA: COMBAT"; WeaponBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50); WeaponBtn.TextColor3 = Color3.new(1,1,1)
+WeaponBtn.Size = UDim2.new(1, -20, 0, 40); WeaponBtn.Position = UDim2.new(0, 10, 0, 50)
+WeaponBtn.Text = "WEAPON: MELEE"; WeaponBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50); WeaponBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", WeaponBtn)
 
 WeaponBtn.MouseButton1Click:Connect(function()
-    if _G.SelectedWeapon == "Combat" then
-        _G.SelectedWeapon = "Espada"
-        WeaponBtn.Text = "ARMA: ESPADA/KATANA"
+    if _G.SelectedWeapon == "Melee" then
+        _G.SelectedWeapon = "Sword"
+        WeaponBtn.Text = "WEAPON: SWORD"
     else
-        _G.SelectedWeapon = "Combat"
-        WeaponBtn.Text = "ARMA: COMBAT"
+        _G.SelectedWeapon = "Melee"
+        WeaponBtn.Text = "WEAPON: MELEE"
     end
 end)
 
--- Botão Auto Farm
 local FarmBtn = Instance.new("TextButton", Main)
-FarmBtn.Size = UDim2.new(1, -20, 0, 50); FarmBtn.Position = UDim2.new(0, 10, 0, 90)
-FarmBtn.Text = "INICIAR AUTO FARM"; FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200); FarmBtn.TextColor3 = Color3.new(1,1,1)
+FarmBtn.Size = UDim2.new(1, -20, 0, 50); FarmBtn.Position = UDim2.new(0, 10, 0, 100)
+FarmBtn.Text = "START AUTO FARM"; FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 80, 200); FarmBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", FarmBtn)
 
 FarmBtn.MouseButton1Click:Connect(function()
     _G.AutoFarm = not _G.AutoFarm
-    FarmBtn.Text = _G.AutoFarm and "FARMANDO... [ON]" or "INICIAR AUTO FARM"
-    FarmBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(0, 100, 200)
+    FarmBtn.Text = _G.AutoFarm and "FARMING... [ON]" or "START AUTO FARM"
+    FarmBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(0, 80, 200)
 end)
 
 -- --- MOTOR DE ATAQUE ---
@@ -106,7 +106,7 @@ task.spawn(function()
     end
 end)
 
--- --- LÓGICA PRINCIPAL (REMOTE + TELEPORT) ---
+-- --- LOOP PRINCIPAL ---
 task.spawn(function()
     while true do
         task.wait(1)
@@ -115,11 +115,11 @@ task.spawn(function()
                 local hrp = GetChar():WaitForChild("HumanoidRootPart")
                 
                 if not HasQuest() then
-                    -- Tenta aceitar via Remote primeiro (sem ir lá)
+                    -- 1. TENTA REMOTE QUEST
                     RS.Events.GotQuest:FireServer(1)
                     task.wait(0.5)
                     
-                    -- Se após o remote ainda não tiver quest, ele vai até o NPC
+                    -- 2. SE NÃO FUNCIONAR, VAI AO NPC
                     if not HasQuest() then
                         hrp.CFrame = NPC_QUEST_CFRAME
                         task.wait(0.5)
@@ -133,7 +133,7 @@ task.spawn(function()
                         RS.Events.GotQuest:FireServer(1)
                     end
                 else
-                    -- EXECUTA O FARM
+                    -- 3. EXECUTA O FARM
                     local banditsFolder = workspace:FindFirstChild("Bandits", true)
                     local target = nil
                     
