@@ -1,144 +1,112 @@
--- Shadow Hub V30 - Adrian PRO (Melee/Sword Selector)
+-- Shadow Hub V31 - Adrian Final Quest Fix
 local Player = game.Players.LocalPlayer
 local VIM = game:GetService("VirtualInputManager")
 local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
--- --- CONFIGURAÇÕES ---
 _G.AutoFarm = false
-_G.SelectedWeapon = "Melee" -- Melee ou Sword
+_G.SelectedWeapon = "Melee" 
+
+-- CFRAMES
 local NPC_QUEST_CFRAME = CFrame.new(-483.650757, 31.3953781, -811.273682)
 local BANDITS_SPAWN_CFRAME = CFrame.new(-450, 31, -750) 
 
--- --- FUNÇÕES DE SISTEMA ---
-local function GetChar() return Player.Character or Player.CharacterAdded:Wait() end
-
+-- --- FUNÇÕES DE VERIFICAÇÃO ---
 local function HasQuest()
     local success, result = pcall(function()
+        -- Verifica se a GUI de progresso da missão existe e está visível
         return Player.PlayerGui.QuestOptions.IsQuestFrame.Process.Visible
     end)
     return success and result
 end
 
--- Seleção de Arma Profissional
-local function EquipSelected()
-    local char = GetChar()
-    local backpack = Player.Backpack
+local function EquipWeapon()
+    local char = Player.Character
+    if not char then return end
     local weaponType = _G.SelectedWeapon
     
-    local current = char:FindFirstChildOfClass("Tool")
-    if current then
-        if weaponType == "Sword" and (current.Name:lower():find("katana") or current.Name:lower():find("sword")) then return current end
-        if weaponType == "Melee" and (current.Name:lower():find("combat") or current.Name:lower():find("melee")) then return current end
-    end
-
-    for _, tool in pairs(backpack:GetChildren()) do
-        if weaponType == "Sword" and (tool.Name:lower():find("katana") or tool.Name:lower():find("sword")) then
-            tool.Parent = char
-            return tool
-        elseif weaponType == "Melee" and (tool.Name:lower():find("combat") or tool.Name:lower():find("melee")) then
-            tool.Parent = char
-            return tool
+    -- Tenta encontrar a arma certa
+    for _, tool in pairs(Player.Backpack:GetChildren()) do
+        if weaponType == "Sword" and (tool.Name:find("Katana") or tool.Name:find("Sword")) then
+            tool.Parent = char break
+        elseif weaponType == "Melee" and (tool.Name:find("Combat") or tool.Name:find("Melee")) then
+            tool.Parent = char break
         end
     end
 end
 
--- --- ANTI-AFK ---
-pcall(function()
-    Player.Idled:Connect(function()
-        VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-        task.wait(0.1)
-        VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-    end)
-end)
-
 -- --- INTERFACE ---
-local sg = Instance.new("ScreenGui", Player.PlayerGui); sg.Name = "ShadowHub_V30"; sg.ResetOnSpawn = false
+local sg = Instance.new("ScreenGui", Player.PlayerGui); sg.Name = "ShadowHub_V31"; sg.ResetOnSpawn = false
 local Main = Instance.new("Frame", sg)
-Main.Size = UDim2.new(0, 230, 0, 180); Main.Position = UDim2.new(0.5, -115, 0.4, 0)
-Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20); Main.Active = true; Main.Draggable = true
+Main.Size = UDim2.new(0, 220, 0, 150); Main.Position = UDim2.new(0.5, -110, 0.4, 0); Main.BackgroundColor3 = Color3.fromRGB(15,15,15); Main.Active = true; Main.Draggable = true
 Instance.new("UICorner", Main)
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "SHADOW HUB V30"; Title.TextColor3 = Color3.new(1,1,1); Title.BackgroundTransparency = 1; Title.Font = Enum.Font.GothamBold
+local WepBtn = Instance.new("TextButton", Main)
+WepBtn.Size = UDim2.new(1, -20, 0, 40); WepBtn.Position = UDim2.new(0, 10, 0, 45); WepBtn.Text = "WEAPON: MELEE"
+WepBtn.BackgroundColor3 = Color3.fromRGB(40,40,40); WepBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", WepBtn)
 
--- Seletor Melee/Sword
-local WeaponBtn = Instance.new("TextButton", Main)
-WeaponBtn.Size = UDim2.new(1, -20, 0, 40); WeaponBtn.Position = UDim2.new(0, 10, 0, 50)
-WeaponBtn.Text = "WEAPON: MELEE"; WeaponBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50); WeaponBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", WeaponBtn)
-
-WeaponBtn.MouseButton1Click:Connect(function()
-    if _G.SelectedWeapon == "Melee" then
-        _G.SelectedWeapon = "Sword"
-        WeaponBtn.Text = "WEAPON: SWORD"
-    else
-        _G.SelectedWeapon = "Melee"
-        WeaponBtn.Text = "WEAPON: MELEE"
-    end
+WepBtn.MouseButton1Click:Connect(function()
+    _G.SelectedWeapon = (_G.SelectedWeapon == "Melee") and "Sword" or "Melee"
+    WepBtn.Text = "WEAPON: " .. _G.SelectedWeapon:upper()
 end)
 
 local FarmBtn = Instance.new("TextButton", Main)
-FarmBtn.Size = UDim2.new(1, -20, 0, 50); FarmBtn.Position = UDim2.new(0, 10, 0, 100)
-FarmBtn.Text = "START AUTO FARM"; FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 80, 200); FarmBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", FarmBtn)
+FarmBtn.Size = UDim2.new(1, -20, 0, 50); FarmBtn.Position = UDim2.new(0, 10, 0, 90); FarmBtn.Text = "START AUTO FARM"
+FarmBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200); FarmBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", FarmBtn)
 
 FarmBtn.MouseButton1Click:Connect(function()
     _G.AutoFarm = not _G.AutoFarm
-    FarmBtn.Text = _G.AutoFarm and "FARMING... [ON]" or "START AUTO FARM"
-    FarmBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(0, 80, 200)
+    FarmBtn.Text = _G.AutoFarm and "STOP FARM" or "START AUTO FARM"
+    FarmBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(0, 100, 200)
 end)
 
--- --- MOTOR DE ATAQUE ---
+-- --- ATAQUE ---
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
-        if _G.AutoFarm then
-            pcall(function()
-                local tool = GetChar():FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
-                    VIM:SendMouseButtonEvent(500, 500, 0, true, game, 0)
-                    VIM:SendMouseButtonEvent(500, 500, 0, false, game, 0)
-                end
-            end)
+        if _G.AutoFarm and Player.Character then
+            local t = Player.Character:FindFirstChildOfClass("Tool")
+            if t then t:Activate() end
         end
     end
 end)
 
--- --- LOOP PRINCIPAL ---
+-- --- LÓGICA PRINCIPAL (CORREÇÃO DE MISSÃO) ---
 task.spawn(function()
     while true do
         task.wait(1)
         if _G.AutoFarm then
             pcall(function()
-                local hrp = GetChar():WaitForChild("HumanoidRootPart")
+                local hrp = Player.Character.HumanoidRootPart
                 
                 if not HasQuest() then
-                    -- 1. TENTA REMOTE QUEST
-                    RS.Events.GotQuest:FireServer(1)
+                    -- 1. VAI AO NPC
+                    hrp.CFrame = NPC_QUEST_CFRAME
                     task.wait(0.5)
                     
-                    -- 2. SE NÃO FUNCIONAR, VAI AO NPC
-                    if not HasQuest() then
-                        hrp.CFrame = NPC_QUEST_CFRAME
-                        task.wait(0.5)
-                        local prompt = workspace:FindFirstChild("ProximityPrompt", true)
-                        if prompt then
-                            if fireproximityprompt then fireproximityprompt(prompt) end
-                            VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                            task.wait(2.2)
-                            VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        end
-                        RS.Events.GotQuest:FireServer(1)
-                    end
-                else
-                    -- 3. EXECUTA O FARM
-                    local banditsFolder = workspace:FindFirstChild("Bandits", true)
-                    local target = nil
+                    -- 2. TENTA INTERAGIR DE TODAS AS FORMAS
+                    -- Tenta o Remote de várias formas (Número, Nome, String)
+                    RS.Events.GotQuest:FireServer(1)
+                    RS.Events.GotQuest:FireServer("Bandit")
+                    RS.Events.GotQuest:FireServer("Bandit Quest")
                     
-                    if banditsFolder then
-                        for _, v in pairs(banditsFolder:GetChildren()) do
+                    -- Tenta o Botão de Interação (ProximityPrompt)
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("ProximityPrompt") and (v.Parent.Position - hrp.Position).Magnitude < 25 then
+                            if fireproximityprompt then fireproximityprompt(v) end
+                        end
+                    end
+                    
+                    -- Simula a tecla E fisicamente
+                    VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                    task.wait(2.2)
+                    VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                else
+                    -- 3. VAI PARA O FARM
+                    local folder = workspace:FindFirstChild("Bandits", true)
+                    local target = nil
+                    if folder then
+                        for _, v in pairs(folder:GetChildren()) do
                             if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
                                 target = v break
                             end
@@ -146,13 +114,10 @@ task.spawn(function()
                     end
                     
                     if target then
-                        EquipSelected()
-                        local tHrp = target:FindFirstChild("HumanoidRootPart")
-                        if tHrp then
-                            while target and target.Parent and target.Humanoid.Health > 0 and _G.AutoFarm and HasQuest() do
-                                hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 3)
-                                task.wait()
-                            end
+                        EquipWeapon()
+                        while target and target.Parent and target.Humanoid.Health > 0 and _G.AutoFarm and HasQuest() do
+                            hrp.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                            task.wait()
                         end
                     else
                         hrp.CFrame = BANDITS_SPAWN_CFRAME
