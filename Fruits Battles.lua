@@ -1,143 +1,168 @@
 --[[ 
-    SHADOW HUB - AUTO FARM BANDITS (DELTA EXECUTOR)
-    Configurado para Missão: Levels. 0+
-    Inimigos: Bandits
+    SHADOW HUB V7 - ESTÁVEL PARA DELTA
+    Instruções: Copie e cole no Delta. 
+    Chave: Shadow
 ]]
 
-local LMG2L = {};
-local player = game:GetService("Players").LocalPlayer
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-
--- 1. ESTRUTURA DA GUI (Convertida para o seu formato LMG2L)
-LMG2L["ScreenGui_1"] = Instance.new("ScreenGui", CoreGui);
-LMG2L["ScreenGui_1"]["Name"] = "ShadowHub_BanditFarm";
-
--- Painel Principal
-LMG2L["PainelHub_8"] = Instance.new("Frame", LMG2L["ScreenGui_1"]);
-LMG2L["PainelHub_8"]["Visible"] = false;
-LMG2L["PainelHub_8"]["BackgroundColor3"] = Color3.fromRGB(0, 8, 75);
-LMG2L["PainelHub_8"]["Size"] = UDim2.new(0, 300, 0, 200);
-LMG2L["PainelHub_8"]["Position"] = UDim2.new(0.5, -150, 0.5, -100);
-Instance.new("UICorner", LMG2L["PainelHub_8"]);
-
--- Botão Auto Farm
-local btnFarm = Instance.new("TextButton", LMG2L["PainelHub_8"])
-btnFarm.Size = UDim2.new(0, 200, 0, 40)
-btnFarm.Position = UDim2.new(0, 50, 0, 30)
-btnFarm.Text = "Auto Farm Bandits: OFF"
-btnFarm.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-btnFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
-Instance.new("UICorner", btnFarm)
-
--- Botão Abrir (Círculo Flutuante)
-LMG2L["BotaoAbrir_d"] = Instance.new("ImageButton", LMG2L["ScreenGui_1"]);
-LMG2L["BotaoAbrir_d"]["Visible"] = true;
-LMG2L["BotaoAbrir_d"]["Image"] = [[rbxassetid://128327214285742]];
-LMG2L["BotaoAbrir_d"]["Size"] = UDim2.new(0, 50, 0, 50);
-LMG2L["BotaoAbrir_d"]["Position"] = UDim2.new(0, 10, 0, 10);
-LMG2L["BotaoAbrir_d"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-Instance.new("UICorner", LMG2L["BotaoAbrir_d"]).CornerRadius = UDim.new(1, 0);
-
------------------------------------------------------------
--- 2. CONFIGURAÇÕES DA MISSÃO E CFRAMES
------------------------------------------------------------
-local farmAtivo = false
-local npcQuestCFrame = CFrame.new(-483.656006, 32.7710686, -810.33313)
-local nomeMissao = "Levels. 0+"
-local pastaInimigos = workspace:WaitForChild("Visuals"):WaitForChild("More"):WaitForChild("Npcs"):WaitForChild("Enemy"):WaitForChild("Bandits")
-
--- Função para verificar se já estamos na missão (ajuste conforme a lógica do seu jogo)
-local function temMissaoAtiva()
-    -- Se o frame de aceitar não está visível, assumimos que já pegamos ou precisamos pegar
-    local questGui = player.PlayerGui:FindFirstChild("QuestOptions")
-    if questGui and questGui.QuestFrame.Visible then
-        return false
-    end
-    return true
+-- Aguardar o jogo carregar
+if not game:IsLoaded() then
+    game.Loaded:Wait()
 end
 
--- Função para atacar
-local function atacar()
-    local tool = player.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        tool:Activate()
-    end
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- Tentar usar CoreGui (comum em executores), se falhar usa PlayerGui
+local parentGui = game:GetService("CoreGui") or player:WaitForChild("PlayerGui")
+
+-- Limpar versões antigas para não duplicar
+if parentGui:FindFirstChild("ShadowSystemV7") then
+    parentGui:FindFirstChild("ShadowSystemV7"):Destroy()
 end
 
+-- 1. CRIAÇÃO DA UI BASE
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ShadowSystemV7"
+screenGui.Parent = parentGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- 2. TELA DE KEY
+local keyFrame = Instance.new("Frame", screenGui)
+keyFrame.Name = "KeyFrame"
+keyFrame.Size = UDim2.new(0, 400, 0, 200)
+keyFrame.Position = UDim2.new(0.5, -200, 0.5, -100)
+keyFrame.BackgroundColor3 = Color3.fromRGB(11, 0, 49)
+keyFrame.BorderSizePixel = 0
+keyFrame.Active = true
+keyFrame.Draggable = true -- Permite mover no mobile
+
+local keyInput = Instance.new("TextBox", keyFrame)
+keyInput.Size = UDim2.new(0, 250, 0, 40)
+keyInput.Position = UDim2.new(0.5, -125, 0.4, -20)
+keyInput.PlaceholderText = "Digite a Key..."
+keyInput.Text = ""
+keyInput.BackgroundColor3 = Color3.fromRGB(8, 5, 89)
+keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local verifyBtn = Instance.new("TextButton", keyFrame)
+verifyBtn.Size = UDim2.new(0, 150, 0, 40)
+verifyBtn.Position = UDim2.new(0.5, -75, 0.7, -20)
+verifyBtn.Text = "Verificar"
+verifyBtn.BackgroundColor3 = Color3.fromRGB(0, 126, 255)
+verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- 3. PAINEL DE FUNÇÕES (HUB)
+local mainHub = Instance.new("Frame", screenGui)
+mainHub.Name = "MainHub"
+mainHub.Size = UDim2.new(0, 350, 0, 250)
+mainHub.Position = UDim2.new(0.5, -175, 0.5, -125)
+mainHub.BackgroundColor3 = Color3.fromRGB(0, 8, 75)
+mainHub.Visible = false
+Instance.new("UICorner", mainHub)
+
+local farmBtn = Instance.new("TextButton", mainHub)
+farmBtn.Size = UDim2.new(0, 280, 0, 50)
+farmBtn.Position = UDim2.new(0.5, -140, 0.2, 0)
+farmBtn.Text = "Auto Farm: OFF"
+farmBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 120)
+farmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", farmBtn)
+
+-- 4. BOTÃO DE ABRIR/FECHAR (MASCOTE)
+local toggleBtn = Instance.new("ImageButton", screenGui)
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0, 60, 0, 60)
+toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleBtn.Image = "rbxassetid://128327214285742"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Visible = false
+local corner = Instance.new("UICorner", toggleBtn)
+corner.CornerRadius = UDim.new(1, 0)
+
 -----------------------------------------------------------
--- 3. LOOP PRINCIPAL DO AUTO FARM
+-- LÓGICA DO SCRIPT
 -----------------------------------------------------------
+local CHAVE = "Shadow"
+local autoFarm = false
+local questNPC_CFrame = CFrame.new(-483.656006, 32.7710686, -810.33313)
+
+-- Verificação de Key
+verifyBtn.MouseButton1Click:Connect(function()
+    if keyInput.Text == CHAVE then
+        keyFrame.Visible = false
+        toggleBtn.Visible = true
+        mainHub.Visible = true
+        print("✅ Acesso Permitido!")
+    else
+        keyInput.Text = ""
+        keyInput.PlaceholderText = "KEY INCORRETA!"
+    end
+end)
+
+-- Toggle Hub
+toggleBtn.MouseButton1Click:Connect(function()
+    mainHub.Visible = not mainHub.Visible
+end)
+
+-- Auto Farm
+farmBtn.MouseButton1Click:Connect(function()
+    autoFarm = not autoFarm
+    farmBtn.Text = autoFarm and "Auto Farm: ON" or "Auto Farm: OFF"
+    farmBtn.BackgroundColor3 = autoFarm and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(20, 20, 120)
+end)
+
+-- Loop do Farm
 task.spawn(function()
-    while true do
-        if farmAtivo then
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            
-            if root then
-                -- PASSO 1: Verificar/Pegar Missão
+    while task.wait() do
+        if autoFarm then
+            pcall(function()
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                -- 1. Verificar Missão na GUI
                 local questGui = player.PlayerGui:FindFirstChild("QuestOptions")
-                
                 if questGui and questGui.QuestFrame.Visible then
-                    -- Clicar em Accept
                     local acceptBtn = questGui.QuestFrame:FindFirstChild("Accept")
-                    if acceptBtn then
-                        if firesignal then
-                            firesignal(acceptBtn.MouseButton1Click)
-                        else
-                            -- Fallback para mobile se firesignal falhar
-                            local pos = acceptBtn.AbsolutePosition
-                            game:GetService("VirtualInputManager"):SendMouseButtonEvent(pos.X + 30, pos.Y + 30, 0, true, game, 1)
-                            game:GetService("VirtualInputManager"):SendMouseButtonEvent(pos.X + 30, pos.Y + 30, 0, false, game, 1)
-                        end
+                    if acceptBtn and firesignal then
+                        firesignal(acceptBtn.MouseButton1Click)
+                    end
+                end
+
+                -- 2. Procurar Inimigo
+                local inimigosFolder = workspace.Visuals.More.Npcs.Enemy.Bandits
+                local alvo = nil
+                for _, enemy in pairs(inimigosFolder:GetChildren()) do
+                    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        alvo = enemy
+                        break
+                    end
+                end
+
+                if alvo then
+                    -- Teleportar para o inimigo (atrás dele)
+                    hrp.CFrame = alvo.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                    -- Atacar
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool then 
+                        tool:Activate() 
                     end
                 else
-                    -- Verificar se precisa ir ao NPC (distância simples ou lógica de GUI)
-                    -- Aqui você pode adicionar uma checagem de texto na GUI para saber se já completou
-                    
-                    -- Procurar Inimigo Vivo
-                    local alvo = nil
-                    for _, v in pairs(pastaInimigos:GetChildren()) do
-                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                            alvo = v
-                            break
-                        end
-                    end
-                    
-                    if alvo then
-                        -- Teleporta para o Inimigo (atrás/em cima dele para não levar dano)
-                        root.CFrame = alvo.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-                        atacar()
-                    else
-                        -- Se não tem inimigo, vai para o NPC pegar missão (caso não tenha)
-                        root.CFrame = npcQuestCFrame
-                        -- Interagir com ProximityPrompt do NPC
-                        for _, p in pairs(workspace:GetDescendants()) do
-                            if p:IsA("ProximityPrompt") and p:IsDescendantOf(workspace) and (p.Parent.Position - npcQuestCFrame.Position).Magnitude < 10 then
-                                if fireproximityprompt then
-                                    fireproximityprompt(p)
-                                end
+                    -- Se não tem inimigo, vai ao NPC da Quest
+                    hrp.CFrame = questNPC_CFrame
+                    -- Tentar interagir com ProximityPrompt (Delta)
+                    for _, p in pairs(workspace:GetDescendants()) do
+                        if p:IsA("ProximityPrompt") and p:IsDescendantOf(workspace) then
+                            if (p.Parent.Position - questNPC_CFrame.Position).Magnitude < 15 then
+                                if fireproximityprompt then fireproximityprompt(p) end
                             end
                         end
                     end
                 end
-            end
+            end)
         end
-        task.wait(0.1)
     end
 end)
 
------------------------------------------------------------
--- 4. CONEXÕES
------------------------------------------------------------
-btnFarm.MouseButton1Click:Connect(function()
-    farmAtivo = not farmAtivo
-    btnFarm.Text = farmAtivo and "Auto Farm Bandits: ON" or "Auto Farm Bandits: OFF"
-    btnFarm.BackgroundColor3 = farmAtivo and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(30, 30, 30)
-end)
-
-LMG2L["BotaoAbrir_d"].MouseButton1Click:Connect(function()
-    LMG2L["PainelHub_8"].Visible = not LMG2L["PainelHub_8"].Visible
-end)
-
-print("Shadow Auto-Farm Bandits v1.0 Carregado!")
+print("Shadow Hub v7 Carregado com Sucesso!")
