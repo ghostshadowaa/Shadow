@@ -1,126 +1,99 @@
---[[
-    Script: Auto Quest Level 0+
-    Library: Orion Lib
-    Status: Funcional (Mobile/PC)
-]]
+-- // Proteção para não executar o script duas vezes
+if _G.ScriptRodando then return end
+_G.ScriptRodando = true
 
--- Garante que o jogo carregou antes de iniciar
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+-- // Configurações Locais
+local NPC_CF = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local TS = game:GetService("TweenService")
 
+-- // Carregando a Library (Orion)
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
-local Window = OrionLib:MakeWindow({
-    Name = "Elite Hub | Auto Farm", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "EliteQuestConfig"
-})
 
--- // Variáveis Globais \\ --
-_G.AutoFarm = false
-_G.TweenSpeed = 200
-local NPC_CFrame = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
+local Window = OrionLib:MakeWindow({Name = "Elite Hub Local", HidePremium = false, SaveConfig = false})
 
--- // Funções Utilitárias \\ --
-
-local function SmoothTween(TargetCFrame)
-    local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        local distance = (root.Position - TargetCFrame.Position).Magnitude
-        local info = TweenInfo.new(distance / _G.TweenSpeed, Enum.EasingStyle.Linear)
-        local tween = game:GetService("TweenService"):Create(root, info, {CFrame = TargetCFrame})
-        tween:Play()
-        return tween
-    end
+-- // Função de Movimentação Otimizada
+local function FlyTo(target)
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    local distance = (root.Position - target.Position).Magnitude
+    local info = TweenInfo.new(distance / _G.Velocidade, Enum.EasingStyle.Linear)
+    
+    local tween = TS:Create(root, info, {CFrame = target})
+    tween:Play()
+    return tween
 end
 
--- // Loop Principal \\ --
-
-local function MainLoop()
+-- // Função Principal (Auto Quest)
+local function StartQuest()
     while _G.AutoFarm do
+        task.wait(0.5)
         pcall(function()
-            local lp = game.Players.LocalPlayer
-            local gui = lp.PlayerGui:FindFirstChild("QuestOptions")
+            -- 1. Verificar GUI de Quest
+            local playerGui = LP:WaitForChild("PlayerGui")
+            local questGui = playerGui:FindFirstChild("QuestOptions")
             
-            -- Lógica: Aceitar Quest se não estiver ativa
-            if not gui or not gui.QuestFrame.Accept.Visible then
-                local tw = SmoothTween(NPC_CFrame)
-                if tw then tw.Completed:Wait() end
+            -- Se a missão não estiver aceita (Botão Accept visível)
+            if questGui and questGui.QuestFrame.Accept.Visible then
+                -- Clica no botão
+                local btn = questGui.QuestFrame.Accept
+                for _, v in pairs(getconnections(btn.MouseButton1Click)) do v:Fire() end
+            else
+                -- 2. Se não tem missão, vai ao NPC
+                local tw = FlyTo(NPC_CF)
+                tw.Completed:Wait()
                 
-                -- Interação com o ProximityPrompt
+                -- Interage com o ProximityPrompt (Simula segurar E)
+                -- Procura em um raio de 15 studs da CFrame do NPC
                 for _, v in pairs(workspace:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") and lp:DistanceFromCharacter(v.Parent.WorldPivot.Position) < 15 then
+                    if v:IsA("ProximityPrompt") and (v.Parent.WorldPivot.Position - NPC_CF.Position).Magnitude < 15 then
                         fireproximityprompt(v, 2)
-                        task.wait(0.5)
                         break
                     end
                 end
-                
-                -- Clique no Botão Aceitar
-                if gui and gui.QuestFrame.Accept.Visible then
-                    local btn = gui.QuestFrame.Accept
-                    for _, conn in pairs(getconnections(btn.MouseButton1Click)) do
-                        conn:Fire()
-                    end
-                end
             end
 
-            -- Lógica: Ir para os Bandidos
-            local banditFolder = workspace.Visuals.More.Npcs.Enemy.Bandits
-            for _, bandit in pairs(banditFolder:GetChildren()) do
-                if _G.AutoFarm and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 then
-                    local bRoot = bandit:FindFirstChild("HumanoidRootPart")
-                    if bRoot then
-                        -- Vai até o inimigo
-                        local twB = SmoothTween(bRoot.CFrame * CFrame.new(0, 0, 3))
-                        if twB then twB.Completed:Wait() end
-                        
-                        -- Fica no inimigo até ele morrer
-                        repeat
-                            if bRoot and _G.AutoFarm then
-                                lp.Character.HumanoidRootPart.CFrame = bRoot.CFrame * CFrame.new(0, 0, 3)
-                            end
-                            task.wait(0.1)
-                        until not _G.AutoFarm or not bandit:Parent or bandit.Humanoid.Health <= 0
+            -- 3. Ir até os Bandidos
+            local banditsPath = workspace:WaitForChild("Visuals"):WaitForChild("More"):WaitForChild("Npcs"):WaitForChild("Enemy"):WaitForChild("Bandits")
+            local bandit = banditsPath:FindFirstChildOfClass("Model") -- Pega o primeiro bandido disponível
+            
+            if bandit and bandit:FindFirstChild("HumanoidRootPart") and bandit.Humanoid.Health > 0 then
+                local bRoot = bandit.HumanoidRootPart
+                local twB = FlyTo(bRoot.CFrame * CFrame.new(0, 0, 3))
+                twB.Completed:Wait()
+                
+                -- Fica no bandido até ele morrer
+                repeat
+                    if _G.AutoFarm and bRoot then
+                        LP.Character.HumanoidRootPart.CFrame = bRoot.CFrame * CFrame.new(0, 0, 3)
                     end
-                end
+                    task.wait(0.1)
+                until not _G.AutoFarm or bandit.Humanoid.Health <= 0 or not bandit.Parent
             end
         end)
-        task.wait(1)
     end
 end
 
--- // Interface \\ --
+-- // Interface
+local Tab = Window:MakeTab({Name = "Auto Farm", Icon = "rbxassetid://4483362458"})
 
-local FarmTab = Window:MakeTab({
-    Name = "Auto Farm",
-    Icon = "rbxassetid://4483362458",
-    PremiumOnly = false
-})
+_G.AutoFarm = false
+_G.Velocidade = 150
 
-FarmTab:AddToggle({
-    Name = "Ativar Missão Bandidos (0+)",
+Tab:AddToggle({
+    Name = "Auto Quest Level 0+",
     Default = false,
-    Callback = function(Value)
-        _G.AutoFarm = Value
-        if Value then
-            task.spawn(MainLoop)
-        end
-    end    
+    Callback = function(v)
+        _G.AutoFarm = v
+        if v then task.spawn(StartQuest) end
+    end
 })
 
-FarmTab:AddSlider({
-    Name = "Velocidade do Voo",
-    Min = 50,
-    Max = 500,
-    Default = 200,
-    Color = Color3.fromRGB(0, 255, 100),
-    Increment = 1,
-    ValueName = "Vel",
-    Callback = function(Value)
-        _G.TweenSpeed = Value
-    end    
+Tab:AddSlider({
+    Name = "Velocidade",
+    Min = 50, Max = 400, Default = 150,
+    Callback = function(v) _G.Velocidade = v end
 })
 
 OrionLib:Init()
