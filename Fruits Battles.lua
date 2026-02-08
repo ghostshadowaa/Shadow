@@ -1,25 +1,41 @@
--- // Aguardar o jogo carregar completamente
-if not game:IsLoaded() then game.Loaded:Wait() end
-
--- // Carregando Rayfield Library (A mais estável para você)
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Elite Hub | Auto Quest",
-   LoadingTitle = "Carregando Configurações...",
-   LoadingSubtitle = "by Gemini",
-   ConfigurationSaving = { Enabled = false }
-})
-
 -- // Variáveis de Controle
 _G.AutoFarm = false
 _G.Velocidade = 150
-local NPC_CFrame = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
+local NPC_CF = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
 
--- // Função de Movimentação (Tween)
+-- // Criando Interface Simples (UI Nativa)
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local ToggleBtn = Instance.new("TextButton")
+
+ScreenGui.Parent = game.CoreGui
+ScreenGui.Name = "EliteHubNative"
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.5, -75, 0.5, -50)
+MainFrame.Size = UDim2.new(0, 150, 0, 100)
+MainFrame.Active = true
+MainFrame.Draggable = true -- Você pode arrastar na tela
+
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "Elite Hub v1"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundTransparency = 1
+
+ToggleBtn.Parent = MainFrame
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
+ToggleBtn.Size = UDim2.new(0.8, 0, 0.4, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+ToggleBtn.Text = "Auto Quest: OFF"
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- // Função de Movimentação
 local function To(TargetCFrame)
-    local char = game.Players.LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local root = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if root then
         local distance = (root.Position - TargetCFrame.Position).Magnitude
         local info = TweenInfo.new(distance / _G.Velocidade, Enum.EasingStyle.Linear)
@@ -29,50 +45,36 @@ local function To(TargetCFrame)
     end
 end
 
--- // Lógica Principal da Quest
-local function StartAutoQuest()
+-- // Lógica da Quest
+local function StartQuest()
     while _G.AutoFarm do
         task.wait(0.5)
         pcall(function()
             local lp = game.Players.LocalPlayer
             local questGui = lp.PlayerGui:FindFirstChild("QuestOptions")
             
-            -- 1. Verifica se precisa aceitar a missão
             if not questGui or not questGui.QuestFrame.Accept.Visible then
-                -- Vai até o NPC
-                local tw = To(NPC_CFrame)
-                if tw then tw.Completed:Wait() end
-                
-                -- Interage (Segura E por 2s)
+                To(NPC_CF).Completed:Wait()
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("ProximityPrompt") and lp:DistanceFromCharacter(v.Parent.WorldPivot.Position) < 15 then
                         fireproximityprompt(v, 2)
-                        task.wait(0.5)
                         break
                     end
                 end
-                
-                -- Clica no botão Accept
+                task.wait(0.5)
                 if questGui and questGui.QuestFrame.Accept.Visible then
                     local btn = questGui.QuestFrame.Accept
-                    for _, conn in pairs(getconnections(btn.MouseButton1Click)) do
-                        conn:Fire()
-                    end
+                    for _, conn in pairs(getconnections(btn.MouseButton1Click)) do conn:Fire() end
                 end
             end
 
-            -- 2. Ir até os Bandidos
-            -- Caminho: Visuals.More.Npcs.Enemy.Bandits
-            local banditFolder = workspace.Visuals.More.Npcs.Enemy.Bandits
-            for _, bandit in pairs(banditFolder:GetChildren()) do
+            -- Ir até os Bandidos
+            local folder = workspace.Visuals.More.Npcs.Enemy.Bandits
+            for _, bandit in pairs(folder:GetChildren()) do
                 if _G.AutoFarm and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 then
                     local bRoot = bandit:FindFirstChild("HumanoidRootPart")
                     if bRoot then
-                        -- Voa até o bandido
-                        local twB = To(bRoot.CFrame * CFrame.new(0, 0, 3))
-                        if twB then twB.Completed:Wait() end
-                        
-                        -- Fica colado nele até morrer
+                        To(bRoot.CFrame * CFrame.new(0, 0, 3)).Completed:Wait()
                         repeat
                             if bRoot and _G.AutoFarm then
                                 lp.Character.HumanoidRootPart.CFrame = bRoot.CFrame * CFrame.new(0, 0, 3)
@@ -86,35 +88,15 @@ local function StartAutoQuest()
     end
 end
 
--- // Criação da Aba e Botões
-local MainTab = Window:CreateTab("Farm Automático", 4483362458)
-
-MainTab:CreateToggle({
-   Name = "Ativar Quest (Level 0+)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.AutoFarm = Value
-      if Value then
-          task.spawn(StartAutoQuest)
-      end
-   end,
-})
-
-MainTab:CreateSlider({
-   Name = "Velocidade do Tween",
-   Min = 50,
-   Max = 400,
-   CurrentValue = 150,
-   Flag = "SliderVel",
-   Callback = function(Value)
-      _G.Velocidade = Value
-   end,
-})
-
--- Notificação de Sucesso
-Rayfield:Notify({
-   Title = "Elite Hub Ativo",
-   Content = "Script carregado pelo gerenciador local.",
-   Duration = 5,
-   Image = 4483362458,
-})
+-- // Botão Toggle
+ToggleBtn.MouseButton1Click:Connect(function()
+    _G.AutoFarm = not _G.AutoFarm
+    if _G.AutoFarm then
+        ToggleBtn.Text = "Auto Quest: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+        task.spawn(StartQuest)
+    else
+        ToggleBtn.Text = "Auto Quest: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    end
+end)
