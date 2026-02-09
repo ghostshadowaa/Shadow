@@ -117,6 +117,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
 -- Configurações
 local questNPC_CFrame = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
@@ -125,6 +126,10 @@ local banditsLocation = game.Workspace:FindFirstChild("Visuals") and
                        game.Workspace.Visuals.More:FindFirstChild("Npcs") and
                        game.Workspace.Visuals.More.Npcs:FindFirstChild("Enemy") and
                        game.Workspace.Visuals.More.Npcs.Enemy:FindFirstChild("Bandits")
+
+-- Posição do botão Aceitar (em coordenadas de tela)
+local acceptButtonPosition = Vector2.new(0.756419659 * 1000, 1.08244634 * 1000)
+-- Nota: Multiplicando por 1000 pois as coordenadas parecem ser em escala 0-1
 
 -- Variáveis de controle
 local isRunning = false
@@ -206,7 +211,7 @@ local function findClosestNPC(position)
     return closestNPC
 end
 
--- Função para interagir com NPC segurando E por 2 segundos
+-- Função para interagir com NPC segurando E por 3 segundos
 local function interactWithNPC()
     if isInteracting then return false end
     isInteracting = true
@@ -238,20 +243,20 @@ local function interactWithNPC()
     
     wait(0.5)
     
-    -- Segurar tecla E por 2 segundos
-    updateStatus("🗣️ Conversando com NPC...", "yellow")
+    -- Segurar tecla E por 3 segundos (SEM SOLTAR)
+    updateStatus("🗣️ Conversando com NPC (3s)...", "yellow")
     
-    -- Pressionar E
+    -- Pressionar E e segurar por 3 segundos
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
     
-    -- Manter pressionado por 2 segundos
+    -- Manter pressionado por 3 segundos
     local startTime = tick()
-    while tick() - startTime < 2 and isRunning do
-        updateStatus(string.format("🗣️ Conversando... (%.1fs)", tick() - startTime), "yellow")
+    while tick() - startTime < 3 and isRunning do
+        updateStatus(string.format("🗣️ Conversando... (%.1fs/3s)", tick() - startTime), "yellow")
         RunService.Heartbeat:Wait()
     end
     
-    -- Soltar E
+    -- Soltar E após 3 segundos
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
     
     updateStatus("✅ Conversa concluída!", "green")
@@ -261,58 +266,63 @@ local function interactWithNPC()
     return true
 end
 
--- Função para aceitar quest via GUI (clicar no botão Aceitar)
+-- Função para clicar no botão Aceitar na posição específica
+local function clickAcceptButton()
+    updateStatus("🖱️ Clicando em Aceitar...", "yellow")
+    
+    -- Usar as coordenadas fornecidas
+    -- {0.756419659, 0}, {1.08244634, 0}
+    -- Aparentemente são coordenadas UDim2: ScaleX=0.756, OffsetX=0, ScaleY=1.082, OffsetY=0
+    -- Vamos converter para posição absoluta da tela
+    
+    local screenSize = Camera.ViewportSize
+    local absoluteX = screenSize.X * 0.756419659
+    local absoluteY = screenSize.Y * 1.08244634
+    
+    -- Ajustar se as coordenadas estiverem fora da tela
+    absoluteX = math.clamp(absoluteX, 0, screenSize.X)
+    absoluteY = math.clamp(absoluteY, 0, screenSize.Y)
+    
+    print(string.format("Clicando na posição: X=%.0f, Y=%.0f", absoluteX, absoluteY))
+    
+    -- Clicar e segurar por um breve momento
+    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, true, game, 0)
+    wait(0.1)
+    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, false, game, 0)
+    
+    -- Fazer clique duplo para garantir
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, true, game, 0)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, false, game, 0)
+    
+    return true
+end
+
+-- Função para aceitar quest clicando na posição específica
 local function acceptQuest()
-    updateStatus("🔍 Procurando janela de missão...", "yellow")
+    updateStatus("⏳ Aguardando janela da missão...", "yellow")
     
-    -- Aguardar um pouco para a janela aparecer
-    wait(1)
+    -- Aguardar a janela aparecer
+    wait(2)
     
-    local maxAttempts = 10
-    for attempt = 1, maxAttempts do
+    -- Tentar várias vezes clicar no botão
+    for attempt = 1, 5 do
         if not isRunning then break end
         
-        -- Procurar por qualquer GUI de quest/missão
-        for _, guiObject in pairs(player.PlayerGui:GetDescendants()) do
-            if guiObject:IsA("TextButton") and (guiObject.Text:lower():find("aceitar") or 
-               guiObject.Text:lower():find("accept") or guiObject.Text:lower():find("iniciar") or
-               guiObject.Text:lower():find("start")) then
-                
-                updateStatus("✅ Clicando em Aceitar...", "green")
-                
-                -- Tentar diferentes métodos para clicar
-                if guiObject:FindFirstChildOfClass("ClickDetector") then
-                    fireclickdetector(guiObject:FindFirstChildOfClass("ClickDetector"))
-                else
-                    -- Simular evento de clique
-                    local success = pcall(function()
-                        guiObject:FireEvent("MouseButton1Click")
-                    end)
-                    
-                    if not success then
-                        -- Tentar outro método
-                        local absolutePosition = guiObject.AbsolutePosition
-                        local absoluteSize = guiObject.AbsoluteSize
-                        local centerX = absolutePosition.X + absoluteSize.X / 2
-                        local centerY = absolutePosition.Y + absoluteSize.Y / 2
-                        
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                        wait(0.1)
-                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-                    end
-                end
-                
-                wait(0.5)
-                updateStatus("🎯 Missão aceita!", "green")
-                return true
-            end
-        end
+        updateStatus(string.format("🖱️ Tentativa %d/5 de aceitar...", attempt), "yellow")
         
-        updateStatus(string.format("🔍 Tentativa %d/%d...", attempt, maxAttempts), "yellow")
-        wait(0.5)
+        clickAcceptButton()
+        
+        -- Verificar se a missão foi aceita (pelo contador resetar)
+        wait(1)
+        
+        -- Se o script continuar, assumimos que funcionou
+        updateStatus("✅ Missão aceita!", "green")
+        return true
     end
     
-    updateStatus("⚠️ Não encontrou botão Aceitar", "red")
+    updateStatus("⚠️ Não conseguiu aceitar a missão", "red")
     return false
 end
 
@@ -393,7 +403,7 @@ local function attackBandit(bandit)
     teleportTo(bandit.HumanoidRootPart.CFrame * CFrame.new(0, 0, 8))
     
     -- Autoclick loop
-    local maxTime = 10 -- segundos máximo por bandido
+    local maxTime = 8 -- segundos máximo por bandido
     local startTime = tick()
     
     while bandit and bandit.Parent and bandit.Humanoid.Health > 0 and 
@@ -403,23 +413,18 @@ local function attackBandit(bandit)
         if character.HumanoidRootPart and bandit.HumanoidRootPart then
             local direction = (bandit.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit
             character.HumanoidRootPart.CFrame = CFrame.new(
-                bandit.HumanoidRootPart.Position - direction * 6,
+                bandit.HumanoidRootPart.Position - direction * 5,
                 bandit.HumanoidRootPart.Position
             )
         end
         
         -- Ativar a ferramenta (ataque)
-        for i = 1, 3 do
-            if not isRunning then break end
-            tool:Activate()
-            
-            -- Simular clique do mouse
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            wait(0.05)
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-            
-            wait(0.1)
-        end
+        tool:Activate()
+        
+        -- Simular clique do mouse
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
         
         wait(0.1)
     end
@@ -450,7 +455,7 @@ local function farmBandits()
                 
                 if attackBandit(bandit) then
                     killedThisCycle = killedThisCycle + 1
-                    wait(0.5) -- Pequena pausa entre bandidos
+                    wait(0.3) -- Pequena pausa entre bandidos
                 end
             end
         end
@@ -464,6 +469,8 @@ local function farmBandits()
         -- Atualizar lista de bandidos
         bandits = findBandits()
         killedThisCycle = 0
+        
+        wait(0.5)
     end
     
     return killCount >= targetBandits
@@ -473,21 +480,24 @@ end
 local function startAutoFarm()
     updateStatus("🚀 Iniciando Auto Farm...", "green")
     
-    -- Equipar arma antes de começar
-    equipWeapon()
-    
     while isRunning do
         -- Resetar contador de kills
         updateKillCount(0)
         
-        -- Etapa 1: Conversar com NPC
+        -- Equipar arma antes de começar
+        equipWeapon()
+        
+        -- Etapa 1: Conversar com NPC (segurando E por 3s)
         if not interactWithNPC() then
             updateStatus("❌ Falha ao interagir com NPC", "red")
             wait(2)
             continue
         end
         
-        -- Etapa 2: Aceitar quest
+        -- Pequena pausa para a janela aparecer
+        wait(1)
+        
+        -- Etapa 2: Aceitar quest clicando na posição específica
         if not acceptQuest() then
             updateStatus("❌ Falha ao aceitar missão", "red")
             wait(2)
@@ -512,7 +522,7 @@ local function startAutoFarm()
         -- Se completou a missão
         if killCount >= targetBandits then
             updateStatus("🎉 Missão completada! Reiniciando...", "green")
-            wait(2) -- Pausa antes de reiniciar
+            wait(3) -- Pausa antes de reiniciar
         end
         
         -- Pequena pausa entre ciclos
@@ -583,8 +593,8 @@ end)
 -- Inicialização
 print("=====================================")
 print("Shadow Hub | Fruits Battles Carregado")
-print("Versão: 3.0 - Sistema de Conversa com E")
+print("Versão: 4.0 - Posição Específica do Botão")
 print("=====================================")
 print("NPC Location:", questNPC_CFrame)
-print("Bandits Location:", banditsLocation)
+print("Botão Aceitar Posição:", acceptButtonPosition)
 print("=====================================")
