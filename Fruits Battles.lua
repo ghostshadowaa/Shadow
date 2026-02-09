@@ -26,8 +26,8 @@ toggleButton.Parent = screenGui
 -- Frame principal do hub
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 320, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 350, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 2
@@ -46,7 +46,7 @@ title.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Text = "Shadow Hub | Fruits Battles"
 title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.TextSize = 18
 title.Parent = mainFrame
 
 -- Botão de Auto Farm
@@ -58,14 +58,14 @@ autoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
 autoFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoFarmButton.Text = "▶ INICIAR AUTO FARM"
 autoFarmButton.Font = Enum.Font.GothamBold
-autoFarmButton.TextSize = 14
+autoFarmButton.TextSize = 16
 autoFarmButton.Parent = mainFrame
 
 -- Status label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "Status"
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
-statusLabel.Position = UDim2.new(0.05, 0, 0.7, 0)
+statusLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 statusLabel.Text = "🟢 PRONTO"
@@ -77,13 +77,25 @@ statusLabel.Parent = mainFrame
 local killCountLabel = Instance.new("TextLabel")
 killCountLabel.Name = "KillCount"
 killCountLabel.Size = UDim2.new(0.9, 0, 0, 30)
-killCountLabel.Position = UDim2.new(0.05, 0, 0.8, 0)
+killCountLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
 killCountLabel.BackgroundTransparency = 1
 killCountLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
 killCountLabel.Text = "Bandidos: 0/4"
 killCountLabel.Font = Enum.Font.Gotham
 killCountLabel.TextSize = 12
 killCountLabel.Parent = mainFrame
+
+-- Contador de ciclos
+local cycleCountLabel = Instance.new("TextLabel")
+cycleCountLabel.Name = "CycleCount"
+cycleCountLabel.Size = UDim2.new(0.9, 0, 0, 30)
+cycleCountLabel.Position = UDim2.new(0.05, 0, 0.75, 0)
+cycleCountLabel.BackgroundTransparency = 1
+cycleCountLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
+cycleCountLabel.Text = "Ciclos: 0"
+cycleCountLabel.Font = Enum.Font.Gotham
+cycleCountLabel.TextSize = 12
+cycleCountLabel.Parent = mainFrame
 
 -- Efeitos nos botões
 autoFarmButton.MouseEnter:Connect(function()
@@ -111,7 +123,10 @@ toggleButton.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Variáveis do sistema
+-- =====================================================================
+-- SISTEMA PRINCIPAL
+-- =====================================================================
+
 local character = player.Character or player.CharacterAdded:Wait()
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -127,41 +142,52 @@ local banditsLocation = game.Workspace:FindFirstChild("Visuals") and
                        game.Workspace.Visuals.More.Npcs:FindFirstChild("Enemy") and
                        game.Workspace.Visuals.More.Npcs.Enemy:FindFirstChild("Bandits")
 
--- Posição do botão Aceitar (em coordenadas de tela)
-local acceptButtonPosition = Vector2.new(0.756419659 * 1000, 1.08244634 * 1000)
--- Nota: Multiplicando por 1000 pois as coordenadas parecem ser em escala 0-1
-
 -- Variáveis de controle
 local isRunning = false
 local killCount = 0
+local cycleCount = 0
 local targetBandits = 4
 local isInteracting = false
+local safeYLevel = 35  -- Altura mínima segura para evitar água
 
--- Função para atualizar status
+-- =====================================================================
+-- FUNÇÕES UTILITÁRIAS
+-- =====================================================================
+
 local function updateStatus(text, color)
     statusLabel.Text = text
     if color == "red" then
         statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
     elseif color == "yellow" then
         statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+    elseif color == "blue" then
+        statusLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
     else
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
     end
 end
 
--- Função para atualizar contador de kills
 local function updateKillCount(count)
     killCount = count
     killCountLabel.Text = string.format("Bandidos: %d/4", killCount)
 end
 
--- Função para teletransportar personagem (tween rápido)
-local function teleportTo(cframe)
+local function updateCycleCount(count)
+    cycleCount = count
+    cycleCountLabel.Text = string.format("Ciclos: %d", cycleCount)
+end
+
+-- =====================================================================
+-- SISTEMA DE MOVIMENTO SEGURO
+-- =====================================================================
+
+local function safeTeleport(cframe)
     if not character or not character:FindFirstChild("HumanoidRootPart") then
         character = player.Character or player.CharacterAdded:Wait()
+        wait(1)
     end
     
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local humanoidRootPart = character.HumanoidRootPart
     
     -- Verificar se já está próximo
     local distance = (humanoidRootPart.Position - cframe.Position).Magnitude
@@ -169,389 +195,407 @@ local function teleportTo(cframe)
         return true
     end
     
-    -- Velocidade rápida: menor tempo para maior velocidade
-    local speed = 100 -- Unidades por segundo
-    local duration = math.min(distance / speed, 2) -- Máximo 2 segundos
+    -- Garantir que não estamos na água
+    if humanoidRootPart.Position.Y < safeYLevel then
+        humanoidRootPart.CFrame = CFrame.new(
+            humanoidRootPart.Position.X,
+            safeYLevel,
+            humanoidRootPart.Position.Z
+        )
+        wait(0.3)
+    end
     
-    local tweenInfo = TweenInfo.new(
-        duration,
-        Enum.EasingStyle.Linear
-    )
+    -- Ajustar altura do destino
+    local targetPos = cframe.Position
+    if targetPos.Y < safeYLevel then
+        targetPos = Vector3.new(targetPos.X, safeYLevel, targetPos.Z)
+    end
     
-    local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = cframe})
+    -- Criar CFrame seguro
+    local safeCFrame = CFrame.new(targetPos) * CFrame.Angles(0, humanoidRootPart.CFrame.Rotation.Y, 0)
+    
+    -- Movimento suave em 2 etapas
+    local speed = 80
+    local duration = math.min(distance / speed, 4)
+    
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = safeCFrame})
+    
     tween:Play()
     
-    -- Esperar completar
     local startTime = tick()
-    while tick() - startTime < duration + 0.5 and tween.PlaybackState == Enum.PlaybackState.Playing do
+    while tick() - startTime < duration + 1 and tween.PlaybackState == Enum.PlaybackState.Playing do
+        if not isRunning then break end
         RunService.Heartbeat:Wait()
     end
     
     return true
 end
 
--- Função para encontrar NPC mais próximo da posição fornecida
-local function findClosestNPC(position)
-    local closestNPC = nil
+-- =====================================================================
+-- SISTEMA DE INTERAÇÃO COM NPC
+-- =====================================================================
+
+local function findQuestNPC()
+    updateStatus("🔍 Procurando NPC...", "blue")
+    
+    -- Procurar NPC na posição especificada
+    local npcFound = nil
     local closestDistance = math.huge
     
-    for _, npc in pairs(workspace:GetDescendants()) do
-        if npc:IsA("Model") and npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") then
-            local npcPos = npc:GetPivot().Position
-            local distance = (position - npcPos).Magnitude
-            
-            -- Verificar se é um NPC de quest (pode ter nome específico)
-            if distance < 50 and distance < closestDistance then
-                closestNPC = npc
+    for _, descendant in pairs(workspace:GetDescendants()) do
+        if descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") then
+            local distance = (questNPC_CFrame.Position - descendant:GetPivot().Position).Magnitude
+            if distance < 25 and distance < closestDistance then
+                npcFound = descendant
                 closestDistance = distance
             end
         end
     end
     
-    return closestNPC
+    if npcFound then
+        updateStatus(string.format("✅ NPC encontrado (%.1f unidades)", closestDistance), "green")
+        return npcFound
+    end
+    
+    -- Se não encontrou, criar ponto de interação na posição
+    updateStatus("📍 Usando posição do NPC", "yellow")
+    return nil
 end
 
--- Função para interagir com NPC segurando E por 3 segundos
 local function interactWithNPC()
     if isInteracting then return false end
     isInteracting = true
     
     updateStatus("📍 Indo até o NPC...", "yellow")
     
-    -- Ir até a posição do NPC
-    teleportTo(questNPC_CFrame)
-    
-    -- Procurar NPC mais próximo
-    local npc = findClosestNPC(questNPC_CFrame.Position)
-    
-    if not npc then
-        updateStatus("❌ NPC não encontrado!", "red")
-        isInteracting = false
-        return false
-    end
-    
-    -- Posicionar na frente do NPC
-    updateStatus("🚶 Posicionando...", "yellow")
-    local npcCFrame = npc:GetPivot()
-    teleportTo(npcCFrame * CFrame.new(2, 2, -5))
-    
-    -- Virar para o NPC
-    character.HumanoidRootPart.CFrame = CFrame.lookAt(
-        character.HumanoidRootPart.Position,
-        Vector3.new(npcCFrame.X, character.HumanoidRootPart.Position.Y, npcCFrame.Z)
-    )
-    
+    -- Ir para a posição do NPC
+    safeTeleport(questNPC_CFrame)
     wait(0.5)
     
-    -- Segurar tecla E por 3 segundos (SEM SOLTAR)
-    updateStatus("🗣️ Conversando com NPC (3s)...", "yellow")
+    -- Encontrar NPC
+    local npc = findQuestNPC()
     
-    -- Pressionar E e segurar por 3 segundos
+    if npc and npc:FindFirstChild("HumanoidRootPart") then
+        -- Posicionar na frente do NPC
+        local npcPos = npc.HumanoidRootPart.Position
+        local frontPosition = npcPos + (npc.HumanoidRootPart.CFrame.LookVector * -5)
+        frontPosition = Vector3.new(frontPosition.X, safeYLevel, frontPosition.Z)
+        
+        safeTeleport(CFrame.new(frontPosition))
+        
+        -- Virar para o NPC
+        character.HumanoidRootPart.CFrame = CFrame.lookAt(
+            character.HumanoidRootPart.Position,
+            Vector3.new(npcPos.X, character.HumanoidRootPart.Position.Y, npcPos.Z)
+        )
+        
+        wait(0.5)
+    end
+    
+    -- Segurar E por 3 segundos
+    updateStatus("🗣️ Segurando E (3 segundos)...", "yellow")
+    
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
     
-    -- Manter pressionado por 3 segundos
     local startTime = tick()
     while tick() - startTime < 3 and isRunning do
-        updateStatus(string.format("🗣️ Conversando... (%.1fs/3s)", tick() - startTime), "yellow")
+        local elapsed = tick() - startTime
+        updateStatus(string.format("🗣️ Conversando... (%.1f/3s)", elapsed), "yellow")
         RunService.Heartbeat:Wait()
     end
     
-    -- Soltar E após 3 segundos
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
     
-    updateStatus("✅ Conversa concluída!", "green")
+    updateStatus("✅ Conversa finalizada", "green")
     wait(0.5)
     
     isInteracting = false
     return true
 end
 
--- Função para clicar no botão Aceitar na posição específica
-local function clickAcceptButton()
-    updateStatus("🖱️ Clicando em Aceitar...", "yellow")
-    
-    -- Usar as coordenadas fornecidas
-    -- {0.756419659, 0}, {1.08244634, 0}
-    -- Aparentemente são coordenadas UDim2: ScaleX=0.756, OffsetX=0, ScaleY=1.082, OffsetY=0
-    -- Vamos converter para posição absoluta da tela
-    
-    local screenSize = Camera.ViewportSize
-    local absoluteX = screenSize.X * 0.756419659
-    local absoluteY = screenSize.Y * 1.08244634
-    
-    -- Ajustar se as coordenadas estiverem fora da tela
-    absoluteX = math.clamp(absoluteX, 0, screenSize.X)
-    absoluteY = math.clamp(absoluteY, 0, screenSize.Y)
-    
-    print(string.format("Clicando na posição: X=%.0f, Y=%.0f", absoluteX, absoluteY))
-    
-    -- Clicar e segurar por um breve momento
-    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, true, game, 0)
-    wait(0.1)
-    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, false, game, 0)
-    
-    -- Fazer clique duplo para garantir
-    wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, true, game, 0)
-    wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(absoluteX, absoluteY, 0, false, game, 0)
-    
-    return true
-end
+-- =====================================================================
+-- SISTEMA DE ACEITAR QUEST
+-- =====================================================================
 
--- Função para aceitar quest clicando na posição específica
 local function acceptQuest()
     updateStatus("⏳ Aguardando janela da missão...", "yellow")
     
-    -- Aguardar a janela aparecer
-    wait(2)
+    -- Aguardar janela aparecer
+    wait(2.5)
     
-    -- Tentar várias vezes clicar no botão
-    for attempt = 1, 5 do
-        if not isRunning then break end
-        
-        updateStatus(string.format("🖱️ Tentativa %d/5 de aceitar...", attempt), "yellow")
-        
-        clickAcceptButton()
-        
-        -- Verificar se a missão foi aceita (pelo contador resetar)
-        wait(1)
-        
-        -- Se o script continuar, assumimos que funcionou
-        updateStatus("✅ Missão aceita!", "green")
-        return true
+    -- Coordenadas do botão Aceitar: {0.756419659, 0}, {1.08244634, 0}
+    -- Estas são coordenadas UDim2 (Scale, Offset)
+    local screenSize = Camera.ViewportSize
+    
+    -- Calcular posição absoluta
+    local buttonX = screenSize.X * 0.756419659
+    local buttonY = screenSize.Y * 0.5  -- Posição central como fallback
+    
+    -- Se o segundo valor for muito grande, pode ser Offset
+    if 1.08244634 > 10 then
+        buttonY = 1.08244634
+    else
+        -- Posição típica de botões na parte inferior
+        buttonY = screenSize.Y * 0.8
     end
     
-    updateStatus("⚠️ Não conseguiu aceitar a missão", "red")
-    return false
+    -- Garantir que está dentro da tela
+    buttonX = math.clamp(buttonX, 50, screenSize.X - 50)
+    buttonY = math.clamp(buttonY, 50, screenSize.Y - 50)
+    
+    updateStatus("🖱️ Clicando em Aceitar...", "yellow")
+    
+    -- Clicar na posição
+    for i = 1, 3 do
+        VirtualInputManager:SendMouseButtonEvent(buttonX, buttonY, 0, true, game, 1)
+        wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(buttonX, buttonY, 0, false, game, 1)
+        wait(0.1)
+    end
+    
+    updateStatus("✅ Missão aceita!", "green")
+    return true
 end
 
--- Função para equipar Melee ou Sword
+-- =====================================================================
+-- SISTEMA DE EQUIPAMENTO
+-- =====================================================================
+
 local function equipWeapon()
-    updateStatus("⚔️ Equipando arma...", "yellow")
+    updateStatus("⚔️ Buscando arma...", "yellow")
     
-    -- Lista de prioridade de armas
+    -- Prioridade: Melee > Sword
     local weaponPriority = {"Melee", "Sword"}
     
-    -- Verificar no inventário primeiro
+    -- Verificar no inventário
     local backpack = player:FindFirstChild("Backpack")
     if backpack then
         for _, weaponName in pairs(weaponPriority) do
-            for _, item in pairs(backpack:GetChildren()) do
-                if item:IsA("Tool") and item.Name:lower():find(weaponName:lower()) then
-                    -- Equipar a arma
-                    character.Humanoid:EquipTool(item)
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and string.find(tool.Name:lower(), weaponName:lower()) then
+                    character.Humanoid:EquipTool(tool)
                     wait(0.5)
-                    updateStatus("✅ " .. item.Name .. " equipada!", "green")
-                    return item
+                    updateStatus("✅ " .. tool.Name .. " equipada", "green")
+                    return tool
                 end
             end
         end
     end
     
     -- Verificar no personagem
-    for _, item in pairs(character:GetChildren()) do
-        if item:IsA("Tool") and (item.Name:lower():find("melee") or item.Name:lower():find("sword")) then
-            character.Humanoid:EquipTool(item)
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") and (string.find(tool.Name:lower(), "melee") or string.find(tool.Name:lower(), "sword")) then
+            character.Humanoid:EquipTool(tool)
             wait(0.5)
-            updateStatus("✅ " .. item.Name .. " equipada!", "green")
-            return item
+            updateStatus("✅ " .. tool.Name .. " equipada", "green")
+            return tool
         end
     end
     
-    updateStatus("⚠️ Nenhuma arma Melee/Sword encontrada", "red")
+    updateStatus("⚠️ Nenhuma arma encontrada", "yellow")
     return nil
 end
 
--- Função para encontrar bandidos
+-- =====================================================================
+-- SISTEMA DE COMBATE
+-- =====================================================================
+
 local function findBandits()
-    -- Tentar primeiro pela localização específica
+    local bandits = {}
+    
+    -- Método 1: Localização específica
     if banditsLocation then
-        local bandits = {}
-        for _, child in pairs(banditsLocation:GetChildren()) do
-            if child:IsA("Model") and child:FindFirstChild("Humanoid") and child.Humanoid.Health > 0 then
-                table.insert(bandits, child)
+        for _, enemy in pairs(banditsLocation:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                table.insert(bandits, enemy)
             end
         end
-        return bandits
     end
     
-    -- Se não encontrar, procurar por modelos com "Bandit" no nome
-    local allBandits = {}
-    for _, descendant in pairs(workspace:GetDescendants()) do
-        if descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") and 
-           descendant.Humanoid.Health > 0 and descendant.Name:lower():find("bandit") then
-            table.insert(allBandits, descendant)
+    -- Método 2: Busca por nome
+    if #bandits == 0 then
+        for _, enemy in pairs(workspace:GetDescendants()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                if string.find(enemy.Name:lower(), "bandit") or string.find(enemy.Name:lower(), "bandido") then
+                    table.insert(bandits, enemy)
+                end
+            end
         end
     end
-    return allBandits
+    
+    return bandits
 end
 
--- Função para atacar um bandido específico
-local function attackBandit(bandit)
-    if not bandit or not bandit.Parent or not bandit:FindFirstChild("Humanoid") then
+local function attackEnemy(enemy)
+    if not enemy or not enemy.Parent or not enemy:FindFirstChild("Humanoid") then
         return false
     end
     
+    -- Equipar arma se necessário
     local tool = character:FindFirstChildOfClass("Tool")
     if not tool then
         tool = equipWeapon()
         if not tool then return false end
     end
     
-    -- Ir até o bandido
-    teleportTo(bandit.HumanoidRootPart.CFrame * CFrame.new(0, 0, 8))
+    -- Ir até o inimigo
+    local enemyPos = enemy.HumanoidRootPart.Position
+    local safePos = Vector3.new(enemyPos.X, math.max(enemyPos.Y, safeYLevel), enemyPos.Z)
     
-    -- Autoclick loop
-    local maxTime = 8 -- segundos máximo por bandido
+    safeTeleport(CFrame.new(safePos) * CFrame.new(0, 0, 8))
+    wait(0.3)
+    
+    -- Sistema de ataque
+    local maxAttackTime = 10
     local startTime = tick()
     
-    while bandit and bandit.Parent and bandit.Humanoid.Health > 0 and 
-          tick() - startTime < maxTime and isRunning do
+    while enemy and enemy.Parent and enemy.Humanoid.Health > 0 and 
+          tick() - startTime < maxAttackTime and isRunning do
         
-        -- Calcular posição para atacar
-        if character.HumanoidRootPart and bandit.HumanoidRootPart then
-            local direction = (bandit.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit
+        -- Posicionar corretamente
+        if character.HumanoidRootPart and enemy.HumanoidRootPart then
+            local enemyPos = enemy.HumanoidRootPart.Position
+            local safeEnemyPos = Vector3.new(enemyPos.X, math.max(enemyPos.Y, safeYLevel), enemyPos.Z)
+            local direction = (safeEnemyPos - character.HumanoidRootPart.Position).Unit
+            
             character.HumanoidRootPart.CFrame = CFrame.new(
-                bandit.HumanoidRootPart.Position - direction * 5,
-                bandit.HumanoidRootPart.Position
+                safeEnemyPos - direction * 4,
+                safeEnemyPos
             )
         end
         
-        -- Ativar a ferramenta (ataque)
-        tool:Activate()
-        
-        -- Simular clique do mouse
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        wait(0.05)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        -- Atacar
+        for i = 1, 5 do
+            if not isRunning then break end
+            if tool then
+                tool:Activate()
+            end
+            
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+            wait(0.03)
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            wait(0.05)
+        end
         
         wait(0.1)
     end
     
     -- Verificar se matou
-    if bandit.Humanoid.Health <= 0 then
+    if enemy.Humanoid.Health <= 0 then
         updateKillCount(killCount + 1)
-        updateStatus(string.format("☠️ Bandido %d/4 eliminado!", killCount), "green")
+        updateStatus(string.format("☠️ Bandido %d/4 eliminado", killCount), "green")
         return true
     end
     
     return false
 end
 
--- Função principal de farm de bandidos
 local function farmBandits()
     updateStatus("🔍 Procurando bandidos...", "yellow")
     
     local bandits = findBandits()
-    local killedThisCycle = 0
     
-    while isRunning and killCount < targetBandits and #bandits > 0 do
-        for _, bandit in pairs(bandits) do
-            if not isRunning or killCount >= targetBandits then break end
-            
-            if bandit.Humanoid.Health > 0 then
-                updateStatus(string.format("⚔️ Atacando bandido (%d/%d)...", killCount + 1, targetBandits), "yellow")
-                
-                if attackBandit(bandit) then
-                    killedThisCycle = killedThisCycle + 1
-                    wait(0.3) -- Pequena pausa entre bandidos
-                end
-            end
+    if #bandits == 0 then
+        updateStatus("❌ Nenhum bandido encontrado", "red")
+        return false
+    end
+    
+    updateStatus(string.format("✅ %d bandidos encontrados", #bandits), "green")
+    
+    for _, bandit in pairs(bandits) do
+        if not isRunning or killCount >= targetBandits then break end
+        
+        if bandit.Humanoid.Health > 0 then
+            updateStatus(string.format("⚔️ Atacando bandido (%d/%d)...", killCount + 1, targetBandits), "yellow")
+            attackEnemy(bandit)
+            wait(0.5)
         end
-        
-        -- Se não matou ninguém neste ciclo, esperar e procurar novamente
-        if killedThisCycle == 0 then
-            updateStatus("⏳ Aguardando bandidos...", "yellow")
-            wait(2)
-        end
-        
-        -- Atualizar lista de bandidos
-        bandits = findBandits()
-        killedThisCycle = 0
-        
-        wait(0.5)
     end
     
     return killCount >= targetBandits
 end
 
--- Função principal de Auto Farm
-local function startAutoFarm()
-    updateStatus("🚀 Iniciando Auto Farm...", "green")
+-- =====================================================================
+-- SISTEMA PRINCIPAL DE AUTO FARM
+-- =====================================================================
+
+local function mainFarmLoop()
+    updateStatus("🚀 Iniciando ciclo de farm...", "green")
     
     while isRunning do
         -- Resetar contador de kills
         updateKillCount(0)
         
-        -- Equipar arma antes de começar
-        equipWeapon()
-        
-        -- Etapa 1: Conversar com NPC (segurando E por 3s)
+        -- Etapa 1: Interagir com NPC
+        updateStatus("🗣️ Interagindo com NPC...", "blue")
         if not interactWithNPC() then
-            updateStatus("❌ Falha ao interagir com NPC", "red")
-            wait(2)
+            updateStatus("❌ Falha na interação", "red")
+            wait(3)
             continue
         end
         
-        -- Pequena pausa para a janela aparecer
+        -- Etapa 2: Aceitar quest
+        updateStatus("✅ Aceitando missão...", "yellow")
+        acceptQuest()
+        
+        -- Pequena pausa
         wait(1)
         
-        -- Etapa 2: Aceitar quest clicando na posição específica
-        if not acceptQuest() then
-            updateStatus("❌ Falha ao aceitar missão", "red")
-            wait(2)
-            continue
-        end
+        -- Etapa 3: Equipar arma
+        equipWeapon()
         
-        wait(1) -- Pequena pausa
+        -- Etapa 4: Farmar bandidos
+        updateStatus("🎯 Eliminando bandidos...", "green")
         
-        -- Etapa 3: Farmar bandidos
-        updateStatus("🎯 Iniciando eliminação de bandidos...", "green")
-        
+        local startFarmTime = tick()
         while isRunning and killCount < targetBandits do
             farmBandits()
             
-            -- Se ainda não completou, esperar um pouco
-            if killCount < targetBandits then
-                updateStatus(string.format("⏳ Aguardando... (%d/%d)", killCount, targetBandits), "yellow")
-                wait(1)
+            -- Se demorar muito, verificar novamente
+            if tick() - startFarmTime > 60 then
+                updateStatus("⚠️ Demorando muito, reiniciando...", "yellow")
+                break
             end
-        end
-        
-        -- Se completou a missão
-        if killCount >= targetBandits then
-            updateStatus("🎉 Missão completada! Reiniciando...", "green")
-            wait(3) -- Pausa antes de reiniciar
-        end
-        
-        -- Pequena pausa entre ciclos
-        if isRunning then
+            
             wait(1)
+        end
+        
+        -- Verificar se completou
+        if killCount >= targetBandits then
+            updateCycleCount(cycleCount + 1)
+            updateStatus(string.format("🎉 Ciclo %d completado!", cycleCount), "green")
+            wait(3)  -- Pausa entre ciclos
         end
     end
 end
 
--- Botão principal de Auto Farm
+-- =====================================================================
+-- CONTROLES PRINCIPAIS
+-- =====================================================================
+
 autoFarmButton.MouseButton1Click:Connect(function()
     if isRunning then
-        -- Parar farm
+        -- Parar
         isRunning = false
         autoFarmButton.Text = "▶ INICIAR AUTO FARM"
         autoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
         updateStatus("🛑 PARADO", "red")
     else
-        -- Iniciar farm
+        -- Iniciar
         isRunning = true
         autoFarmButton.Text = "⏹️ PARAR AUTO FARM"
         autoFarmButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         updateStatus("🚀 INICIANDO...", "green")
         
+        -- Resetar contadores
+        updateKillCount(0)
+        
         -- Iniciar em thread separada
         coroutine.wrap(function()
-            startAutoFarm()
+            mainFarmLoop()
             
-            -- Quando parar, resetar botão
+            -- Quando terminar
             if not isRunning then
                 autoFarmButton.Text = "▶ INICIAR AUTO FARM"
                 autoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
@@ -561,12 +605,14 @@ autoFarmButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Conectar evento de CharacterAdded
+-- =====================================================================
+-- SISTEMA DE SEGURANÇA
+-- =====================================================================
+
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     wait(1)
     
-    -- Se estava rodando, continuar
     if isRunning then
         updateStatus("♻️ Personagem respawnou, continuando...", "yellow")
         wait(2)
@@ -574,27 +620,62 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
--- Conectar evento de morte
-if character:FindFirstChild("Humanoid") then
-    character.Humanoid.Died:Connect(function()
-        if isRunning then
-            updateStatus("💀 Morreu, aguardando respawn...", "red")
+-- Sistema anti-água
+coroutine.wrap(function()
+    while true do
+        wait(2)
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local pos = character.HumanoidRootPart.Position
+            if pos.Y < 0 then  -- Se estiver na água
+                updateStatus("🌊 Sair da água...", "red")
+                character.HumanoidRootPart.CFrame = CFrame.new(pos.X, safeYLevel, pos.Z)
+            end
         end
-    end)
-end
+    end
+end)()
 
--- Fechar hub quando pressionar ESC
+-- Fechar hub com ESC
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed and input.KeyCode == Enum.KeyCode.Escape then
         mainFrame.Visible = false
     end
 end)
 
--- Inicialização
-print("=====================================")
-print("Shadow Hub | Fruits Battles Carregado")
-print("Versão: 4.0 - Posição Específica do Botão")
-print("=====================================")
-print("NPC Location:", questNPC_CFrame)
-print("Botão Aceitar Posição:", acceptButtonPosition)
-print("=====================================")
+-- =====================================================================
+-- INICIALIZAÇÃO
+-- =====================================================================
+
+print("==========================================")
+print("SHADOW HUB | FRUITS BATTLES v2.0")
+print("==========================================")
+print("Status: ✅ Carregado com sucesso")
+print("NPC Position: " .. tostring(questNPC_CFrame.Position))
+print("Safe Height: " .. safeYLevel)
+print("==========================================")
+print("🔧 Sistema pronto para uso")
+print("⏱️  Aguarde 2-3 segundos para inicialização completa")
+print("==========================================")
+
+-- Verificar recursos
+wait(2)
+
+if not character:FindFirstChild("HumanoidRootPart") then
+    updateStatus("⚠️ Personagem não carregado", "red")
+    wait(3)
+    updateStatus("🟢 PRONTO", "green")
+else
+    updateStatus("✅ Sistema inicializado", "green")
+end
+
+-- Instruções no output
+print("\n🎮 INSTRUÇÕES:")
+print("1. Clique no botão ☰ para abrir o hub")
+print("2. Clique em 'INICIAR AUTO FARM' para começar")
+print("3. O sistema fará automaticamente:")
+print("   • Ir até o NPC")
+print("   • Segurar E por 3 segundos")
+print("   • Aceitar a missão")
+print("   • Eliminar 4 bandidos")
+print("   • Repetir o ciclo")
+print("\n⚠️  MANTENHA-SE EM UM SERVIDOR PRIVADO")
+print("==========================================")
