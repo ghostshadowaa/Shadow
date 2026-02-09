@@ -1,149 +1,171 @@
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
 local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
 local vim = game:GetService("VirtualInputManager")
-local tweenService = game:GetService("TweenService")
+local runService = game:GetService("RunService")
 
--- Variáveis de Controle
+-- Configurações Globais
 _G.AutoFarm = false
-_G.SafeY = 35
-local questNPC_Pos = Vector3.new(-483.65, 31.40, -811.27)
+_G.DistanceNPC = 6 -- Distância para interagir
 
--- Criar a GUI Principal
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ShadowHubRedz"
-screenGui.Parent = playerGui
+-- Caminho do botão que você passou
+local questPath = player.PlayerGui:WaitForChild("QuestOptions"):WaitForChild("QuestFrame")
+local acceptBtn = questPath:WaitForChild("Accept")
 
--- Frame Principal (Estilo Redz)
-local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 450, 0, 300)
-Main.Position = UDim2.new(0.5, -225, 0.5, -150)
-Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-Main.BorderSizePixel = 0
-Main.Parent = screenGui
-Main.Active = true
-Main.Draggable = true
-
--- Corner Arredondado
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = Main
-
--- Barra Lateral (Abas)
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 120, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = Main
-
-local sidebarCorner = Instance.new("UICorner")
-sidebarCorner.CornerRadius = UDim.new(0, 8)
-sidebarCorner.Parent = Sidebar
-
--- Container das Opções (Scrolling)
-local Container = Instance.new("ScrollingFrame")
-Container.Size = UDim2.new(1, -130, 1, -10)
-Container.Position = UDim2.new(0, 125, 0, 5)
-Container.BackgroundTransparency = 1
-Container.CanvasSize = UDim2.new(0, 0, 1.5, 0)
-Container.ScrollBarThickness = 4
-Container.Parent = Main
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
-layout.Parent = Container
-
--- Função para criar Toggle (Estilo Redz)
-local function CreateToggle(name, callback)
-    local bg = Instance.new("TextButton")
-    bg.Size = UDim2.new(0.95, 0, 0, 40)
-    bg.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    bg.Text = "  " .. name
-    bg.TextColor3 = Color3.fromRGB(200, 200, 200)
-    bg.TextXAlignment = Enum.TextXAlignment.Left
-    bg.Font = Enum.Font.Gotham
-    bg.TextSize = 14
-    bg.Parent = Container
-    
-    local indicator = Instance.new("Frame")
-    indicator.Size = UDim2.new(0, 10, 0, 10)
-    indicator.Position = UDim2.new(1, -20, 0.5, -5)
-    indicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    indicator.Parent = bg
-    
-    local state = false
-    bg.MouseButton1Click:Connect(function()
-        state = not state
-        indicator.BackgroundColor3 = state and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
-        callback(state)
-    end)
-end
+-- Posição do NPC
+local npcPos = Vector3.new(-483.65, 31.40, -811.27)
 
 -- ==========================================
--- LÓGICA DE INTERAÇÃO (MELHORADA)
+-- LÓGICA DE INTERAÇÃO SUPREMA
 -- ==========================================
 
-local function interactWithQuest()
-    -- 1. Ir até o NPC
-    if (character.HumanoidRootPart.Position - questNPC_Pos).Magnitude > 10 then
-        character.HumanoidRootPart.CFrame = CFrame.new(questNPC_Pos.X, _G.SafeY, questNPC_Pos.Z)
-        task.wait(0.5)
-    end
+local function interactNPC()
+    -- 1. Teleport suave ou posicionamento
+    rootPart.CFrame = CFrame.new(npcPos + Vector3.new(0, 3, 0)) -- Fica levemente acima para o Raycast do prompt não falhar
+    task.wait(0.3)
     
-    -- 2. Interação ProximityPrompt (2 segundos)
-    vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-    task.wait(2.2) -- Um pouco mais para garantir
-    vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    -- Forçar o olhar para baixo (onde o NPC está)
+    rootPart.CFrame = CFrame.lookAt(rootPart.Position, npcPos)
     
-    -- 3. Clicar no botão de Aceitar (Seu caminho específico)
-    task.wait(0.8)
-    local success, err = pcall(function()
-        local btn = player.PlayerGui.QuestOptions.QuestFrame.Accept
-        if btn and btn.Visible then
-            local x = btn.AbsolutePosition.X + (btn.AbsoluteSize.X / 2)
-            local y = btn.AbsolutePosition.Y + (btn.AbsoluteSize.Y / 2)
-            vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
-            task.wait(0.1)
-            vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    -- 2. Tentar disparar o ProximityPrompt de todas as formas
+    local prompt = nil
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ProximityPrompt") and (v.Parent:GetPivot().Position - npcPos).Magnitude < 10 then
+            prompt = v
+            break
         end
+    end
+
+    if prompt then
+        -- Método A: Simulação de Tecla Segurada
+        vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        
+        local start = tick()
+        repeat 
+            task.wait()
+            -- Método B: Trigger Direto (Garante que funcione se a tecla falhar)
+            prompt:InputHoldBegin() 
+        until tick() - start >= 2.3 or not _G.AutoFarm
+        
+        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        prompt:InputHoldEnd()
+        
+        -- 3. Auto Accept (Espera o frame aparecer e clica)
+        task.wait(0.5)
+        if questPath.Visible or acceptBtn.IsLoaded then
+            local x = acceptBtn.AbsolutePosition.X + (acceptBtn.AbsoluteSize.X / 2)
+            local y = acceptBtn.AbsolutePosition.Y + (acceptBtn.AbsoluteSize.Y / 2)
+            
+            -- Clica 3 vezes para garantir
+            for i=1, 3 do
+                vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+                task.wait(0.05)
+                vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+            end
+            print("Quest Aceita!")
+        end
+    end
+end
+
+-- ==========================================
+-- INTERFACE ESTILO REDZ (TABS)
+-- ==========================================
+
+local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+screenGui.Name = "ShadowHubRedz"
+
+local Main = Instance.new("Frame", screenGui)
+Main.Size = UDim2.new(0, 400, 0, 280)
+Main.Position = UDim2.new(0.5, -200, 0.5, -140)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+
+-- Barra de Abas (Lateral)
+local TabFrame = Instance.new("Frame", Main)
+TabFrame.Size = UDim2.new(0, 100, 1, -10)
+TabFrame.Position = UDim2.new(0, 5, 0, 5)
+TabFrame.BackgroundTransparency = 1
+
+local TabList = Instance.new("UIListLayout", TabFrame)
+TabList.Padding = UDim.new(0, 5)
+
+-- Container de Conteúdo
+local ContentFrame = Instance.new("ScrollingFrame", Main)
+ContentFrame.Size = UDim2.new(1, -120, 1, -20)
+ContentFrame.Position = UDim2.new(0, 110, 0, 10)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.ScrollBarThickness = 2
+
+Instance.new("UIListLayout", ContentFrame).Padding = UDim.new(0, 10)
+
+-- Função para Criar Aba
+local function NewTab(name)
+    local btn = Instance.new("TextButton", TabFrame)
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn)
+    return btn
+end
+
+-- Função para Criar Toggle
+local function NewToggle(parent, text, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Text = "  " .. text
+    btn.TextXAlignment = "Left"
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Instance.new("UICorner", btn)
+    
+    local status = Instance.new("Frame", btn)
+    status.Size = UDim2.new(0, 8, 0, 8)
+    status.Position = UDim2.new(1, -20, 0.5, -4)
+    status.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    Instance.new("UICorner", status).CornerRadius = UDim.new(1, 0)
+
+    local active = false
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        status.BackgroundColor3 = active and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+        callback(active)
     end)
 end
 
 -- ==========================================
--- MONTAGEM DO HUB
+-- CONFIGURAÇÃO DAS ABAS
 -- ==========================================
 
-CreateToggle("Auto Farm Bandits", function(t)
-    _G.AutoFarm = t
-    if t then
-        spawn(function()
+local tabMain = NewTab("Auto Farm")
+
+NewToggle(ContentFrame, "Auto Quest (Bandits)", function(v)
+    _G.AutoFarm = v
+    if v then
+        task.spawn(function()
             while _G.AutoFarm do
-                -- Aqui você chamaria sua função de Kill, mas primeiro a Quest:
-                interactWithQuest()
-                task.wait(10) -- Espera o tempo de fazer a missão
+                -- Lógica: Se não tem quest, vai pegar.
+                -- (Você pode adicionar aqui a checagem se a quest já está ativa no seu jogo)
+                interactNPC()
+                
+                -- Aqui entraria o seu código de ir matar os Bandidos
+                print("Indo matar bandidos...")
+                task.wait(5) 
             end
         end)
     end
 end)
 
-CreateToggle("Auto Quest (Only)", function(t)
-    _G.AutoQuest = t
-    spawn(function()
-        while _G.AutoQuest do
-            interactWithQuest()
-            task.wait(5)
+NewToggle(ContentFrame, "Anti-AFK", function(v)
+    local vu = game:GetService("VirtualUser")
+    player.Idled:Connect(function()
+        if v then
+            vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
         end
     end)
 end)
 
--- Botão de Fechar no Toggle original (estilo Redz usa um botão flutuante)
-local closeBtn = Instance.new("TextButton")
-closeBtn.Text = "X"
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundTransparency = 1
-closeBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
-closeBtn.Parent = Main
-closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
-
-print("Shadow Hub carregado no estilo Redz!")
+print("Shadow Hub v3 pronto!")
