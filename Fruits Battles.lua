@@ -130,6 +130,7 @@ local banditsLocation = game.Workspace:FindFirstChild("Visuals") and
 local isRunning = false
 local killCount = 0
 local targetBandits = 4
+local isInteracting = false
 
 -- Função para atualizar status
 local function updateStatus(text, color)
@@ -156,11 +157,16 @@ local function teleportTo(cframe)
     end
     
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Verificar se já está próximo
     local distance = (humanoidRootPart.Position - cframe.Position).Magnitude
+    if distance < 10 then
+        return true
+    end
     
     -- Velocidade rápida: menor tempo para maior velocidade
-    local speed = 200 -- Unidades por segundo
-    local duration = math.min(distance / speed, 3) -- Máximo 3 segundos
+    local speed = 250 -- Unidades por segundo
+    local duration = math.min(distance / speed, 2) -- Máximo 2 segundos
     
     local tweenInfo = TweenInfo.new(
         duration,
@@ -172,113 +178,141 @@ local function teleportTo(cframe)
     
     -- Esperar completar
     local startTime = tick()
-    while tick() - startTime < duration + 1 and tween.PlaybackState == Enum.PlaybackState.Playing do
+    while tick() - startTime < duration + 0.5 and tween.PlaybackState == Enum.PlaybackState.Playing do
         RunService.Heartbeat:Wait()
     end
     
     return true
 end
 
--- Função para interagir com NPC por 2 segundos
-local function interactWithNPC()
-    updateStatus("🗣️ Falando com NPC...", "yellow")
-    
-    -- Procurar NPCs próximos
+-- Função para encontrar NPC mais próximo da posição fornecida
+local function findClosestNPC(position)
     local closestNPC = nil
     local closestDistance = math.huge
     
     for _, npc in pairs(workspace:GetDescendants()) do
-        if npc:IsA("Model") and npc:FindFirstChild("Humanoid") and npc:FindFirstChild("Head") then
-            local distance = (character.HumanoidRootPart.Position - npc:GetPivot().Position).Magnitude
-            if distance < 30 and distance < closestDistance then
+        if npc:IsA("Model") and npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") then
+            local npcPos = npc:GetPivot().Position
+            local distance = (position - npcPos).Magnitude
+            
+            -- Verificar se é um NPC de quest (pode ter nome específico)
+            if distance < 50 and distance < closestDistance then
                 closestNPC = npc
                 closestDistance = distance
             end
         end
     end
     
-    if closestNPC then
-        -- Posicionar na frente do NPC
-        teleportTo(closestNPC:GetPivot() * CFrame.new(0, 0, -4))
-        wait(0.3)
-        
-        -- Virar para o NPC
-        character.HumanoidRootPart.CFrame = CFrame.lookAt(
-            character.HumanoidRootPart.Position,
-            closestNPC:GetPivot().Position
-        )
-        
-        -- Simular pressionar E para interagir
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
-        wait(0.1)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
-        
-        updateStatus("💬 Dialogando...", "yellow")
-        wait(2.5) -- Esperar 2.5 segundos para diálogo
-        
-        return true
-    else
-        -- Se não encontrar NPC, usar a posição fixa
-        updateStatus("📍 Indo para local do NPC...", "yellow")
-        teleportTo(questNPC_CFrame)
-        wait(1)
-        
-        -- Tentar encontrar NPC novamente
-        for _, npc in pairs(workspace:GetDescendants()) do
-            if npc:IsA("Model") and npc:FindFirstChild("Humanoid") then
-                local distance = (character.HumanoidRootPart.Position - npc:GetPivot().Position).Magnitude
-                if distance < 20 then
-                    -- Simular E novamente
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
-                    wait(0.1)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
-                    wait(2)
-                    return true
-                end
-            end
-        end
-    end
-    
-    return false
+    return closestNPC
 end
 
--- Função para aceitar quest via GUI
+-- Função para interagir com NPC segurando E por 2 segundos
+local function interactWithNPC()
+    if isInteracting then return false end
+    isInteracting = true
+    
+    updateStatus("📍 Indo até o NPC...", "yellow")
+    
+    -- Ir até a posição do NPC
+    teleportTo(questNPC_CFrame)
+    
+    -- Procurar NPC mais próximo
+    local npc = findClosestNPC(questNPC_CFrame.Position)
+    
+    if not npc then
+        updateStatus("❌ NPC não encontrado!", "red")
+        isInteracting = false
+        return false
+    end
+    
+    -- Posicionar na frente do NPC
+    updateStatus("🚶 Posicionando...", "yellow")
+    local npcCFrame = npc:GetPivot()
+    teleportTo(npcCFrame * CFrame.new(0, 0, -5))
+    
+    -- Virar para o NPC
+    character.HumanoidRootPart.CFrame = CFrame.lookAt(
+        character.HumanoidRootPart.Position,
+        Vector3.new(npcCFrame.X, character.HumanoidRootPart.Position.Y, npcCFrame.Z)
+    )
+    
+    wait(0.5)
+    
+    -- Segurar tecla E por 2 segundos
+    updateStatus("🗣️ Conversando com NPC...", "yellow")
+    
+    -- Pressionar E
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+    
+    -- Manter pressionado por 2 segundos
+    local startTime = tick()
+    while tick() - startTime < 2 and isRunning do
+        updateStatus(string.format("🗣️ Conversando... (%.1fs)", tick() - startTime), "yellow")
+        RunService.Heartbeat:Wait()
+    end
+    
+    -- Soltar E
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
+    
+    updateStatus("✅ Conversa concluída!", "green")
+    wait(0.5)
+    
+    isInteracting = false
+    return true
+end
+
+-- Função para aceitar quest via GUI (clicar no botão Aceitar)
 local function acceptQuest()
-    updateStatus("✅ Tentando aceitar missão...", "yellow")
+    updateStatus("🔍 Procurando janela de missão...", "yellow")
     
-    -- Método 1: Procurar na PlayerGui
-    for _, gui in pairs(player.PlayerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") and (gui.Name:find("Quest") or gui.Name:find("Missão")) then
-            for _, child in pairs(gui:GetDescendants()) do
-                if child:IsA("TextButton") and (child.Text:find("Accept") or child.Text:find("Aceitar") or child.Text:find("Iniciar")) then
-                    -- Clicar no botão
-                    fireclickdetector(child:FindFirstChildOfClass("ClickDetector") or 
-                                     Instance.new("ClickDetector", child))
-                    updateStatus("🎯 Missão aceita!", "green")
-                    return true
-                end
-            end
-        end
-    end
-    
-    -- Método 2: Procurar em todos os botões
-    for _, child in pairs(player.PlayerGui:GetDescendants()) do
-        if child:IsA("TextButton") and (child.Text:lower():find("accept") or 
-           child.Text:lower():find("aceitar") or child.Text:lower():find("iniciar")) then
-            -- Simular clique
-            child:FireEvent("MouseButton1Click")
-            updateStatus("🎯 Missão aceita!", "green")
-            return true
-        end
-    end
-    
-    -- Método 3: Tentar pressionar F (comum em muitos jogos)
-    updateStatus("⌨️ Tentando F...", "yellow")
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, nil)
-    wait(0.1)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, nil)
+    -- Aguardar um pouco para a janela aparecer
     wait(1)
     
+    local maxAttempts = 10
+    for attempt = 1, maxAttempts do
+        if not isRunning then break end
+        
+        -- Procurar por qualquer GUI de quest/missão
+        for _, guiObject in pairs(player.PlayerGui:GetDescendants()) do
+            if guiObject:IsA("TextButton") and (guiObject.Text:lower():find("aceitar") or 
+               guiObject.Text:lower():find("accept") or guiObject.Text:lower():find("iniciar") or
+               guiObject.Text:lower():find("start")) then
+                
+                updateStatus("✅ Clicando em Aceitar...", "green")
+                
+                -- Tentar diferentes métodos para clicar
+                if guiObject:FindFirstChildOfClass("ClickDetector") then
+                    fireclickdetector(guiObject:FindFirstChildOfClass("ClickDetector"))
+                else
+                    -- Simular evento de clique
+                    local success = pcall(function()
+                        guiObject:FireEvent("MouseButton1Click")
+                    end)
+                    
+                    if not success then
+                        -- Tentar outro método
+                        local absolutePosition = guiObject.AbsolutePosition
+                        local absoluteSize = guiObject.AbsoluteSize
+                        local centerX = absolutePosition.X + absoluteSize.X / 2
+                        local centerY = absolutePosition.Y + absoluteSize.Y / 2
+                        
+                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+                        wait(0.1)
+                        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+                    end
+                end
+                
+                wait(0.5)
+                updateStatus("🎯 Missão aceita!", "green")
+                return true
+            end
+        end
+        
+        updateStatus(string.format("🔍 Tentativa %d/%d...", attempt, maxAttempts), "yellow")
+        wait(0.5)
+    end
+    
+    updateStatus("⚠️ Não encontrou botão Aceitar", "red")
     return false
 end
 
@@ -287,9 +321,9 @@ local function equipWeapon()
     updateStatus("⚔️ Equipando arma...", "yellow")
     
     -- Lista de prioridade de armas
-    local weaponPriority = {"Melee", "Sword", "Katana", "Combat"}
+    local weaponPriority = {"Melee", "Sword"}
     
-    -- Verificar no inventário
+    -- Verificar no inventário primeiro
     local backpack = player:FindFirstChild("Backpack")
     if backpack then
         for _, weaponName in pairs(weaponPriority) do
@@ -307,7 +341,7 @@ local function equipWeapon()
     
     -- Verificar no personagem
     for _, item in pairs(character:GetChildren()) do
-        if item:IsA("Tool") then
+        if item:IsA("Tool") and (item.Name:lower():find("melee") or item.Name:lower():find("sword")) then
             character.Humanoid:EquipTool(item)
             wait(0.5)
             updateStatus("✅ " .. item.Name .. " equipada!", "green")
@@ -315,25 +349,35 @@ local function equipWeapon()
         end
     end
     
-    -- Tentar pegar arma do chão
-    for _, item in pairs(workspace:GetDescendants()) do
-        if item:IsA("Tool") and (item.Name:lower():find("melee") or item.Name:lower():find("sword")) then
-            teleportTo(item.Handle.CFrame)
-            wait(0.5)
-            firetouchinterest(character.HumanoidRootPart, item.Handle, 0)
-            wait(0.1)
-            firetouchinterest(character.HumanoidRootPart, item.Handle, 1)
-            wait(0.5)
-            character.Humanoid:EquipTool(item)
-            return item
-        end
-    end
-    
-    updateStatus("⚠️ Nenhuma arma encontrada!", "red")
+    updateStatus("⚠️ Nenhuma arma Melee/Sword encontrada", "red")
     return nil
 end
 
--- Função para atacar bandidos
+-- Função para encontrar bandidos
+local function findBandits()
+    -- Tentar primeiro pela localização específica
+    if banditsLocation then
+        local bandits = {}
+        for _, child in pairs(banditsLocation:GetChildren()) do
+            if child:IsA("Model") and child:FindFirstChild("Humanoid") and child.Humanoid.Health > 0 then
+                table.insert(bandits, child)
+            end
+        end
+        return bandits
+    end
+    
+    -- Se não encontrar, procurar por modelos com "Bandit" no nome
+    local allBandits = {}
+    for _, descendant in pairs(workspace:GetDescendants()) do
+        if descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") and 
+           descendant.Humanoid.Health > 0 and descendant.Name:lower():find("bandit") then
+            table.insert(allBandits, descendant)
+        end
+    end
+    return allBandits
+end
+
+-- Função para atacar um bandido específico
 local function attackBandit(bandit)
     if not bandit or not bandit.Parent or not bandit:FindFirstChild("Humanoid") then
         return false
@@ -346,33 +390,38 @@ local function attackBandit(bandit)
     end
     
     -- Ir até o bandido
-    teleportTo(bandit.HumanoidRootPart.CFrame * CFrame.new(0, 0, 5))
+    teleportTo(bandit.HumanoidRootPart.CFrame * CFrame.new(0, 0, 8))
     
     -- Autoclick loop
-    local maxTime = 15 -- segundos máximo por bandido
+    local maxTime = 10 -- segundos máximo por bandido
     local startTime = tick()
     
     while bandit and bandit.Parent and bandit.Humanoid.Health > 0 and 
           tick() - startTime < maxTime and isRunning do
         
-        -- Ativar a ferramenta (ataque)
-        tool:Activate()
-        
-        -- Simular clique do mouse
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        wait(0.05)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        
-        -- Manter posição próxima
+        -- Calcular posição para atacar
         if character.HumanoidRootPart and bandit.HumanoidRootPart then
             local direction = (bandit.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit
             character.HumanoidRootPart.CFrame = CFrame.new(
-                bandit.HumanoidRootPart.Position - direction * 5,
+                bandit.HumanoidRootPart.Position - direction * 6,
                 bandit.HumanoidRootPart.Position
             )
         end
         
-        wait(0.15)
+        -- Ativar a ferramenta (ataque)
+        for i = 1, 3 do
+            if not isRunning then break end
+            tool:Activate()
+            
+            -- Simular clique do mouse
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+            wait(0.05)
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            
+            wait(0.1)
+        end
+        
+        wait(0.1)
     end
     
     -- Verificar se matou
@@ -385,40 +434,36 @@ local function attackBandit(bandit)
     return false
 end
 
--- Função para farmar bandidos
+-- Função principal de farm de bandidos
 local function farmBandits()
-    if not banditsLocation then
-        -- Tentar encontrar bandidos de outra forma
-        local enemies = {}
-        for _, enemy in pairs(workspace:GetDescendants()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and 
-               (enemy.Name:lower():find("bandit") or enemy.Name:lower():find("bandido")) then
-                table.insert(enemies, enemy)
-            end
-        end
-        
-        if #enemies == 0 then
-            updateStatus("❌ Nenhum bandido encontrado!", "red")
-            return false
-        end
-        
-        -- Atacar bandidos encontrados
-        for i, bandit in pairs(enemies) do
-            if not isRunning or killCount >= targetBandits then break end
-            attackBandit(bandit)
-        end
-    else
-        -- Usar localização específica
-        local bandits = banditsLocation:GetChildren()
-        
-        for i, bandit in pairs(bandits) do
+    updateStatus("🔍 Procurando bandidos...", "yellow")
+    
+    local bandits = findBandits()
+    local killedThisCycle = 0
+    
+    while isRunning and killCount < targetBandits and #bandits > 0 do
+        for _, bandit in pairs(bandits) do
             if not isRunning or killCount >= targetBandits then break end
             
-            if bandit:IsA("Model") and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 then
-                updateStatus(string.format("⚔️ Atacando bandido %d...", i), "yellow")
-                attackBandit(bandit)
+            if bandit.Humanoid.Health > 0 then
+                updateStatus(string.format("⚔️ Atacando bandido (%d/%d)...", killCount + 1, targetBandits), "yellow")
+                
+                if attackBandit(bandit) then
+                    killedThisCycle = killedThisCycle + 1
+                    wait(0.5) -- Pequena pausa entre bandidos
+                end
             end
         end
+        
+        -- Se não matou ninguém neste ciclo, esperar e procurar novamente
+        if killedThisCycle == 0 then
+            updateStatus("⏳ Aguardando bandidos...", "yellow")
+            wait(2)
+        end
+        
+        -- Atualizar lista de bandidos
+        bandits = findBandits()
+        killedThisCycle = 0
     end
     
     return killCount >= targetBandits
@@ -426,47 +471,54 @@ end
 
 -- Função principal de Auto Farm
 local function startAutoFarm()
-    equipWeapon() -- Equipar arma antes de começar
+    updateStatus("🚀 Iniciando Auto Farm...", "green")
+    
+    -- Equipar arma antes de começar
+    equipWeapon()
     
     while isRunning do
-        -- Resetar contador
+        -- Resetar contador de kills
         updateKillCount(0)
         
-        -- Etapa 1: Interagir com NPC
-        interactWithNPC()
+        -- Etapa 1: Conversar com NPC
+        if not interactWithNPC() then
+            updateStatus("❌ Falha ao interagir com NPC", "red")
+            wait(2)
+            continue
+        end
         
         -- Etapa 2: Aceitar quest
-        acceptQuest()
+        if not acceptQuest() then
+            updateStatus("❌ Falha ao aceitar missão", "red")
+            wait(2)
+            continue
+        end
         
-        -- Pequena pausa
-        wait(1)
+        wait(1) -- Pequena pausa
         
         -- Etapa 3: Farmar bandidos
-        local banditsKilled = 0
+        updateStatus("🎯 Iniciando eliminação de bandidos...", "green")
+        
         while isRunning and killCount < targetBandits do
-            if farmBandits() then
-                banditsKilled = killCount
-            end
+            farmBandits()
             
-            -- Se não matou ninguém, esperar um pouco
-            if banditsKilled == 0 then
-                wait(2)
-                -- Tentar encontrar bandidos novamente
-                for i = 1, 3 do
-                    updateStatus("🔍 Procurando bandidos...", "yellow")
-                    wait(1)
-                end
+            -- Se ainda não completou, esperar um pouco
+            if killCount < targetBandits then
+                updateStatus(string.format("⏳ Aguardando... (%d/%d)", killCount, targetBandits), "yellow")
+                wait(1)
             end
         end
         
-        -- Se completou os 4 bandidos
+        -- Se completou a missão
         if killCount >= targetBandits then
             updateStatus("🎉 Missão completada! Reiniciando...", "green")
-            wait(2) -- Pequena pausa antes de reiniciar
+            wait(2) -- Pausa antes de reiniciar
         end
         
-        -- Verificar se deve continuar
-        if not isRunning then break end
+        -- Pequena pausa entre ciclos
+        if isRunning then
+            wait(1)
+        end
     end
 end
 
@@ -521,18 +573,18 @@ if character:FindFirstChild("Humanoid") then
     end)
 end
 
--- Inicialização
-print("=====================================")
-print("Shadow Hub | Fruits Battles Carregado")
-print("Versão: 2.0 ")
-print("=====================================")
-print("NPC Location:", questNPC_CFrame)
-print("Bandits Location:", banditsLocation)
-print("=====================================")
-
 -- Fechar hub quando pressionar ESC
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed and input.KeyCode == Enum.KeyCode.Escape then
         mainFrame.Visible = false
     end
 end)
+
+-- Inicialização
+print("=====================================")
+print("Shadow Hub | Fruits Battles Carregado")
+print("Versão: 3.0 - Sistema de Conversa com E")
+print("=====================================")
+print("NPC Location:", questNPC_CFrame)
+print("Bandits Location:", banditsLocation)
+print("=====================================")
