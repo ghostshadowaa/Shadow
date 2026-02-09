@@ -1,4 +1,4 @@
--- Shadow Hub | Fruits Battles - Script Completo
+-- Shadow Hub | Fruits Battles - Script Completo com ProximityPrompt
 -- Coloque este LocalScript no StarterGui > ScreenGui
 
 local player = game.Players.LocalPlayer
@@ -133,6 +133,7 @@ local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 -- Configurações
 local questNPC_CFrame = CFrame.new(-483.6507568359375, 31.39537811279297, -811.273681640625)
@@ -148,7 +149,7 @@ local killCount = 0
 local cycleCount = 0
 local targetBandits = 4
 local isInteracting = false
-local safeYLevel = 35  -- Altura mínima segura para evitar água
+local safeYLevel = 35
 
 -- =====================================================================
 -- FUNÇÕES UTILITÁRIAS
@@ -233,22 +234,39 @@ local function safeTeleport(cframe)
 end
 
 -- =====================================================================
--- SISTEMA DE INTERAÇÃO COM NPC
+-- SISTEMA DE INTERAÇÃO COM NPC VIA PROXIMITYPROMPT
 -- =====================================================================
 
 local function findQuestNPC()
-    updateStatus("🔍 Procurando NPC...", "blue")
+    updateStatus("🔍 Procurando NPC com ProximityPrompt...", "blue")
     
-    -- Procurar NPC na posição especificada
     local npcFound = nil
     local closestDistance = math.huge
     
+    -- Procurar por modelos com ProximityPrompt
     for _, descendant in pairs(workspace:GetDescendants()) do
-        if descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") then
-            local distance = (questNPC_CFrame.Position - descendant:GetPivot().Position).Magnitude
-            if distance < 25 and distance < closestDistance then
-                npcFound = descendant
-                closestDistance = distance
+        if descendant:IsA("Model") then
+            -- Verificar se tem ProximityPrompt
+            local prompt = descendant:FindFirstChildWhichIsA("ProximityPrompt")
+            if prompt then
+                local distance = (questNPC_CFrame.Position - descendant:GetPivot().Position).Magnitude
+                if distance < 50 and distance < closestDistance then
+                    npcFound = descendant
+                    closestDistance = distance
+                end
+            end
+        end
+    end
+    
+    -- Se não encontrou com prompt, procurar qualquer NPC perto da posição
+    if not npcFound then
+        for _, descendant in pairs(workspace:GetDescendants()) do
+            if descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") then
+                local distance = (questNPC_CFrame.Position - descendant:GetPivot().Position).Magnitude
+                if distance < 30 and distance < closestDistance then
+                    npcFound = descendant
+                    closestDistance = distance
+                end
             end
         end
     end
@@ -258,9 +276,129 @@ local function findQuestNPC()
         return npcFound
     end
     
-    -- Se não encontrou, criar ponto de interação na posição
-    updateStatus("📍 Usando posição do NPC", "yellow")
+    updateStatus("❌ NPC não encontrado", "red")
     return nil
+end
+
+local function getProximityPrompt(model)
+    -- Procurar por ProximityPrompt no modelo
+    local prompt = model:FindFirstChildWhichIsA("ProximityPrompt")
+    
+    -- Se não encontrar no modelo, procurar nos descendentes
+    if not prompt then
+        for _, descendant in pairs(model:GetDescendants()) do
+            if descendant:IsA("ProximityPrompt") then
+                prompt = descendant
+                break
+            end
+        end
+    end
+    
+    return prompt
+end
+
+local function interactWithProximityPrompt(npc)
+    if not npc then return false end
+    
+    local prompt = getProximityPrompt(npc)
+    
+    if not prompt then
+        updateStatus("❌ NPC não tem ProximityPrompt", "red")
+        return false
+    end
+    
+    updateStatus("🎯 Encontrou ProximityPrompt", "green")
+    
+    -- Posicionar dentro do alcance do prompt
+    local npcPosition = npc:GetPivot().Position
+    local promptRange = prompt.MaxActivationDistance or 10
+    
+    -- Calcular posição dentro do alcance
+    local offsetDirection = (character.HumanoidRootPart.Position - npcPosition).Unit
+    if offsetDirection.Magnitude == 0 then
+        offsetDirection = Vector3.new(1, 0, 0)  -- Direção padrão se estiver na mesma posição
+    end
+    
+    local targetPosition = npcPosition + (offsetDirection * math.min(promptRange * 0.8, 5))
+    targetPosition = Vector3.new(targetPosition.X, safeYLevel, targetPosition.Z)
+    
+    safeTeleport(CFrame.new(targetPosition))
+    
+    -- Virar para o NPC
+    character.HumanoidRootPart.CFrame = CFrame.lookAt(
+        character.HumanoidRootPart.Position,
+        Vector3.new(npcPosition.X, character.HumanoidRootPart.Position.Y, npcPosition.Z)
+    )
+    
+    wait(0.5)
+    
+    -- Acionar o ProximityPrompt
+    updateStatus("🤝 Interagindo com NPC...", "yellow")
+    
+    -- Método 1: Simular pressionar a tecla de ativação
+    local activationKey = prompt.KeyboardKeyCode or Enum.KeyCode.E
+    
+    -- Pressionar e segurar a tecla pelo tempo necessário
+    local holdDuration = prompt.HoldDuration or 0
+    
+    if holdDuration > 0 then
+        updateStatus(string.format("⏳ Segurando %s por %.1fs...", tostring(activationKey), holdDuration), "yellow")
+        
+        -- Pressionar a tecla
+        VirtualInputManager:SendKeyEvent(true, activationKey, false, nil)
+        
+        -- Esperar o tempo de segurar
+        local startTime = tick()
+        while tick() - startTime < holdDuration and isRunning do
+            updateStatus(string.format("⏳ Segurando... (%.1f/%.1fs)", tick() - startTime, holdDuration), "yellow")
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- Soltar a tecla
+        VirtualInputManager:SendKeyEvent(false, activationKey, false, nil)
+    else
+        updateStatus(string.format("🖱️ Pressionando %s...", tostring(activationKey)), "yellow")
+        
+        -- Pressionar rapidamente para prompts instantâneos
+        VirtualInputManager:SendKeyEvent(true, activationKey, false, nil)
+        wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, activationKey, false, nil)
+    end
+    
+    -- Método alternativo: Acionar o evento Triggered diretamente
+    if prompt then
+        updateStatus("⚡ Ativando ProximityPrompt...", "blue")
+        
+        -- Criar uma cópia segura do evento
+        local success, err = pcall(function()
+            -- Tentar acionar o prompt
+            prompt:InputHoldBegin()
+            if holdDuration > 0 then
+                wait(holdDuration)
+            end
+            prompt:InputHoldEnd()
+        end)
+        
+        if not success then
+            updateStatus("⚠️ Método alternativo falhou, tentando trigger direto...", "yellow")
+            
+            -- Tentar método mais direto
+            local success2 = pcall(function()
+                prompt.Triggered:Fire(player)
+            end)
+            
+            if not success2 then
+                updateStatus("❌ Não conseguiu ativar o prompt", "red")
+                return false
+            end
+        end
+    end
+    
+    -- Esperar um pouco para a interação completar
+    wait(1)
+    
+    updateStatus("✅ Interação concluída", "green")
+    return true
 end
 
 local function interactWithNPC()
@@ -276,40 +414,55 @@ local function interactWithNPC()
     -- Encontrar NPC
     local npc = findQuestNPC()
     
-    if npc and npc:FindFirstChild("HumanoidRootPart") then
-        -- Posicionar na frente do NPC
-        local npcPos = npc.HumanoidRootPart.Position
-        local frontPosition = npcPos + (npc.HumanoidRootPart.CFrame.LookVector * -5)
-        frontPosition = Vector3.new(frontPosition.X, safeYLevel, frontPosition.Z)
+    if not npc then
+        updateStatus("❌ NPC não encontrado na posição", "red")
         
-        safeTeleport(CFrame.new(frontPosition))
+        -- Tentar usar a posição exata
+        updateStatus("📍 Usando posição exata...", "yellow")
         
-        -- Virar para o NPC
-        character.HumanoidRootPart.CFrame = CFrame.lookAt(
-            character.HumanoidRootPart.Position,
-            Vector3.new(npcPos.X, character.HumanoidRootPart.Position.Y, npcPos.Z)
+        -- Posicionar na posição do NPC e tentar interagir
+        character.HumanoidRootPart.CFrame = CFrame.new(
+            questNPC_CFrame.Position.X,
+            safeYLevel,
+            questNPC_CFrame.Position.Z
         )
         
-        wait(0.5)
+        wait(1)
+        
+        -- Tentar encontrar NPC novamente
+        npc = findQuestNPC()
     end
     
-    -- Segurar E por 3 segundos
-    updateStatus("🗣️ Segurando E (3 segundos)...", "yellow")
-    
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
-    
-    local startTime = tick()
-    while tick() - startTime < 3 and isRunning do
-        local elapsed = tick() - startTime
-        updateStatus(string.format("🗣️ Conversando... (%.1f/3s)", elapsed), "yellow")
-        RunService.Heartbeat:Wait()
+    if npc then
+        -- Interagir usando ProximityPrompt
+        local success = interactWithProximityPrompt(npc)
+        
+        if not success then
+            updateStatus("🔄 Tentando método alternativo...", "yellow")
+            
+            -- Método de fallback: Simular E por 3 segundos
+            updateStatus("🗣️ Segurando E por 3 segundos...", "yellow")
+            
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+            
+            local startTime = tick()
+            while tick() - startTime < 3 and isRunning do
+                updateStatus(string.format("🗣️ Segurando E... (%.1f/3s)", tick() - startTime), "yellow")
+                RunService.Heartbeat:Wait()
+            end
+            
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
+        end
+    else
+        -- Se não encontrou NPC, tentar interagir na posição
+        updateStatus("📍 Tentando interagir na posição...", "yellow")
+        
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+        wait(3)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
     end
     
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
-    
-    updateStatus("✅ Conversa finalizada", "green")
     wait(0.5)
-    
     isInteracting = false
     return true
 end
@@ -322,31 +475,60 @@ local function acceptQuest()
     updateStatus("⏳ Aguardando janela da missão...", "yellow")
     
     -- Aguardar janela aparecer
-    wait(2.5)
+    local maxWaitTime = 5
+    local startTime = tick()
     
-    -- Coordenadas do botão Aceitar: {0.756419659, 0}, {1.08244634, 0}
-    -- Estas são coordenadas UDim2 (Scale, Offset)
-    local screenSize = Camera.ViewportSize
-    
-    -- Calcular posição absoluta
-    local buttonX = screenSize.X * 0.756419659
-    local buttonY = screenSize.Y * 0.5  -- Posição central como fallback
-    
-    -- Se o segundo valor for muito grande, pode ser Offset
-    if 1.08244634 > 10 then
-        buttonY = 1.08244634
-    else
-        -- Posição típica de botões na parte inferior
-        buttonY = screenSize.Y * 0.8
+    while tick() - startTime < maxWaitTime and isRunning do
+        -- Verificar se apareceu alguma GUI
+        for _, gui in pairs(player.PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Enabled then
+                -- Procurar por botões de aceitar
+                for _, descendant in pairs(gui:GetDescendants()) do
+                    if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+                        local buttonText = (descendant.Text or ""):lower()
+                        local buttonName = descendant.Name:lower()
+                        
+                        if buttonText:find("aceitar") or buttonText:find("accept") or 
+                           buttonText:find("iniciar") or buttonText:find("start") or
+                           buttonName:find("accept") or buttonName:find("aceitar") then
+                            
+                            updateStatus("✅ Janela encontrada!", "green")
+                            
+                            -- Clicar no botão
+                            local absolutePosition = descendant.AbsolutePosition
+                            local absoluteSize = descendant.AbsoluteSize
+                            local centerX = absolutePosition.X + absoluteSize.X / 2
+                            local centerY = absolutePosition.Y + absoluteSize.Y / 2
+                            
+                            for i = 1, 3 do
+                                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                                wait(0.05)
+                                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
+                                wait(0.1)
+                            end
+                            
+                            updateStatus("🎯 Missão aceita!", "green")
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+        
+        wait(0.1)
     end
+    
+    -- Se não encontrou pela GUI, tentar clicar na posição fornecida
+    updateStatus("📍 Clicando na posição do botão...", "yellow")
+    
+    local screenSize = Camera.ViewportSize
+    local buttonX = screenSize.X * 0.756419659
+    local buttonY = screenSize.Y * 0.8  -- Posição típica de botões
     
     -- Garantir que está dentro da tela
     buttonX = math.clamp(buttonX, 50, screenSize.X - 50)
     buttonY = math.clamp(buttonY, 50, screenSize.Y - 50)
     
-    updateStatus("🖱️ Clicando em Aceitar...", "yellow")
-    
-    -- Clicar na posição
     for i = 1, 3 do
         VirtualInputManager:SendMouseButtonEvent(buttonX, buttonY, 0, true, game, 1)
         wait(0.05)
@@ -354,7 +536,7 @@ local function acceptQuest()
         wait(0.1)
     end
     
-    updateStatus("✅ Missão aceita!", "green")
+    updateStatus("✅ Missão aceita (posição)", "green")
     return true
 end
 
@@ -449,6 +631,7 @@ local function attackEnemy(enemy)
     -- Sistema de ataque
     local maxAttackTime = 10
     local startTime = tick()
+    local attacks = 0
     
     while enemy and enemy.Parent and enemy.Humanoid.Health > 0 and 
           tick() - startTime < maxAttackTime and isRunning do
@@ -476,6 +659,11 @@ local function attackEnemy(enemy)
             wait(0.03)
             VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
             wait(0.05)
+            
+            attacks = attacks + 1
+            if attacks % 20 == 0 then
+                updateStatus(string.format("⚔️ Atacando... (%d golpes)", attacks), "yellow")
+            end
         end
         
         wait(0.1)
@@ -527,13 +715,16 @@ local function mainFarmLoop()
         -- Resetar contador de kills
         updateKillCount(0)
         
-        -- Etapa 1: Interagir com NPC
+        -- Etapa 1: Interagir com NPC via ProximityPrompt
         updateStatus("🗣️ Interagindo com NPC...", "blue")
         if not interactWithNPC() then
             updateStatus("❌ Falha na interação", "red")
             wait(3)
             continue
         end
+        
+        -- Pequena pausa para a janela aparecer
+        wait(2)
         
         -- Etapa 2: Aceitar quest
         updateStatus("✅ Aceitando missão...", "yellow")
@@ -627,7 +818,7 @@ coroutine.wrap(function()
         if character and character:FindFirstChild("HumanoidRootPart") then
             local pos = character.HumanoidRootPart.Position
             if pos.Y < 0 then  -- Se estiver na água
-                updateStatus("🌊 Sair da água...", "red")
+                updateStatus("🌊 Saindo da água...", "red")
                 character.HumanoidRootPart.CFrame = CFrame.new(pos.X, safeYLevel, pos.Z)
             end
         end
@@ -646,18 +837,19 @@ end)
 -- =====================================================================
 
 print("==========================================")
-print("SHADOW HUB | FRUITS BATTLES v2.0")
+print("SHADOW HUB | FRUITS BATTLES v3.0")
 print("==========================================")
 print("Status: ✅ Carregado com sucesso")
 print("NPC Position: " .. tostring(questNPC_CFrame.Position))
 print("Safe Height: " .. safeYLevel)
+print("ProximityPrompt: ✅ Sistema implementado")
 print("==========================================")
-print("🔧 Sistema pronto para uso")
-print("⏱️  Aguarde 2-3 segundos para inicialização completa")
+print("🎮 SISTEMA DE PROXIMITYPROMPT ATIVADO")
+print("⏱️  Tempo de inicialização: 3-5 segundos")
 print("==========================================")
 
 -- Verificar recursos
-wait(2)
+wait(3)
 
 if not character:FindFirstChild("HumanoidRootPart") then
     updateStatus("⚠️ Personagem não carregado", "red")
@@ -671,11 +863,12 @@ end
 print("\n🎮 INSTRUÇÕES:")
 print("1. Clique no botão ☰ para abrir o hub")
 print("2. Clique em 'INICIAR AUTO FARM' para começar")
-print("3. O sistema fará automaticamente:")
-print("   • Ir até o NPC")
-print("   • Segurar E por 3 segundos")
-print("   • Aceitar a missão")
-print("   • Eliminar 4 bandidos")
-print("   • Repetir o ciclo")
+print("3. O sistema agora usa ProximityPrompt para interagir")
+print("4. Funciona com prompts que requerem segurar E")
+print("\n⚙️  SISTEMA OTIMIZADO:")
+print("• ProximityPrompt detection ✅")
+print("• Hold duration support ✅")
+print("• Multiple interaction methods ✅")
+print("• Water protection ✅")
 print("\n⚠️  MANTENHA-SE EM UM SERVIDOR PRIVADO")
 print("==========================================")
