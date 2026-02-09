@@ -170,7 +170,7 @@ local function teleportTo(cframe)
     end
     
     -- Velocidade rápida: menor tempo para maior velocidade
-    local speed = 250 -- Unidades por segundo
+    local speed = 100 -- Unidades por segundo
     local duration = math.min(distance / speed, 2) -- Máximo 2 segundos
     
     local tweenInfo = TweenInfo.new(
@@ -233,7 +233,7 @@ local function interactWithNPC()
     -- Posicionar na frente do NPC
     updateStatus("🚶 Posicionando...", "yellow")
     local npcCFrame = npc:GetPivot()
-    teleportTo(npcCFrame * CFrame.new(0, 0, -5))
+    teleportTo(npcCFrame * CFrame.new(2, 2, -5))
     
     -- Virar para o NPC
     character.HumanoidRootPart.CFrame = CFrame.lookAt(
