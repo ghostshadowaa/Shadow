@@ -2,64 +2,79 @@ local HttpService = game:GetService("HttpService")
 local RbxAnalytics = game:GetService("RbxAnalyticsService")
 
 -- CONFIGURAÇÃO DA API
-local API_URL = "https://gerador.shardweb.app/verify"
+local API_URL = "https://gerador.shardweb.app"
 local playerHWID = RbxAnalytics:GetClientId()
 
--- [Aqui viria a criação da sua UI: loginFrame, keyInput, loginBtn, etc.]
+-- REFERÊNCIAS DA UI (AJUSTE OS NOMES SE PRECISAR)
+local ScreenGui = script.Parent
+local LoginFrame = ScreenGui:FindFirstChild("LoginFrame") or ScreenGui:FindFirstChildWhichIsA("Frame") 
+local MainFrame = ScreenGui:FindFirstChild("MainFrame") or ScreenGui:FindFirstChild("Container")
+local KeyInput = LoginFrame:FindFirstChildWhichIsA("TextBox")
+local LoginBtn = LoginFrame:FindFirstChildWhichIsA("TextButton")
 
-local function TentarLogar()
-    local keyDigitada = keyInput.Text
-    
-    if keyDigitada == "" then
-        keyInput.PlaceholderText = "DIGITE A KEY!"
-        return
+-- GARANTE ESTADO INICIAL
+if MainFrame then MainFrame.Visible = false end
+if LoginFrame then LoginFrame.Visible = true end
+
+local function LiberarAcesso(tipo)
+    print("Sucesso! Nivel: " .. tipo)
+    LoginFrame.Visible = false
+    MainFrame.Visible = true
+    -- Ativa o botão de abrir/fechar se existir
+    local OpenBtn = ScreenGui:FindFirstChild("OpenButton") or ScreenGui:FindFirstChild("openBtn")
+    if OpenBtn then OpenBtn.Visible = true end
+end
+
+local function Validar()
+    local key = KeyInput.Text
+    if key == "" then 
+        KeyInput.PlaceholderText = "INSIRA A KEY!" 
+        return 
     end
 
-    loginBtn.Text = "VERIFICANDO..."
-    loginBtn.Active = false
+    LoginBtn.Text = "CARREGANDO..."
+    LoginBtn.Active = false
 
-    -- Faz a chamada para o seu Bot na Shardcloud
-    local requestUrl = API_URL .. "?key=" .. keyDigitada .. "&hwid=" .. playerHWID
+    -- Tenta conectar (Tenta HTTPS e se falhar tenta HTTP)
+    local url = API_URL .. "?key=" .. key .. "&hwid=" .. playerHWID
     
     local sucesso, resposta = pcall(function()
-        return HttpService:GetAsync(requestUrl)
+        return HttpService:GetAsync(url)
     end)
 
     if sucesso then
-        local dados = HttpService:JSONDecode(resposta)
-        
-        if dados.status == "success" then
-            print("✅ Acesso Liberado! Nível: " .. dados.tipo)
-            
-            -- Lógica de Permissões de Abas
-            if dados.tipo == "adm" then
-                -- Libera tudo (Ex: Fast Farm exclusivo para ADM)
-                if tabButtons["Fast Farm"] then tabButtons["Fast Farm"].Visible = true end
-            else
-                -- Esconde abas pesadas para Free/Premium se desejar
-                if tabButtons["Fast Farm"] then tabButtons["Fast Farm"].Visible = false end
-            end
-
-            -- FECHAR LOGIN E ABRIR O HUB
-            loginFrame:TweenPosition(UDim2.new(0.5, 0, -1, 0), "In", "Sine", 0.5)
-            wait(0.5)
-            mainFrame.Visible = true -- Seu Hub principal
-            
+        local ok, dados = pcall(function() return HttpService:JSONDecode(resposta) end)
+        if ok and dados.status == "success" then
+            LiberarAcesso(dados.tipo)
         else
-            -- Erros enviados pelo Bot (Key Expirada, HWID Inválido, etc)
-            keyInput.Text = ""
-            keyInput.PlaceholderText = dados.message:upper()
-            loginBtn.Text = "ENTRAR"
-            loginBtn.Active = true
+            KeyInput.Text = ""
+            KeyInput.PlaceholderText = dados and dados.message or "KEY INVALIDA"
+            LoginBtn.Text = "ERRO!"
+            wait(1.5)
+            LoginBtn.Text = "ENTRAR"
+            LoginBtn.Active = true
         end
     else
-        -- Se o servidor estiver offline ou o link estiver errado
-        keyInput.Text = ""
-        keyInput.PlaceholderText = "ERRO DE CONEXÃO!"
-        loginBtn.Text = "ENTRAR"
-        loginBtn.Active = true
+        -- Se o HTTPS da Shardcloud falhar, tenta sem o S
+        warn("Erro na API, tentando fallback HTTP...")
+        local urlFallback = url:gsub("https://", "http://")
+        local suc2, res2 = pcall(function() return HttpService:GetAsync(urlFallback) end)
+        
+        if suc2 then
+            local ok, dados = pcall(function() return HttpService:JSONDecode(res2) end)
+            if ok and dados.status == "success" then
+                LiberarAcesso(dados.tipo)
+                return
+            end
+        end
+        
+        KeyInput.Text = ""
+        KeyInput.PlaceholderText = "ERRO DE SERVIDOR!"
+        LoginBtn.Text = "OFFLINE"
+        wait(1.5)
+        LoginBtn.Text = "ENTRAR"
+        LoginBtn.Active = true
     end
 end
 
--- Conectar o botão
-loginBtn.MouseButton1Click:Connect(TentarLogar)
+LoginBtn.MouseButton1Click:Connect(Validar)
