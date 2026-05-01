@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT EDUCACIONAL - GUI + SISTEMAS FUNCIONAIS
+-- GUI INTERFACE + SISTEMAS (AIM/ESP/FOV)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -17,11 +17,13 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- ============================================
 local Settings = {
     ESP = {
+        Skeleton = false,
         Box = false,
         Health = false,
         Distance = false,
         Line = false,
         Color = Color3.fromRGB(255, 0, 0),
+        Transparency = 0.5
     },
     AIMBOT = {
         Enabled = false,
@@ -34,12 +36,12 @@ local Settings = {
     CLIENT = {
         UnlockFPS = false,
         GodMode = false,
-        HitboxExpanded = false,
-        HitboxSize = 2
+        HitboxSize = Vector3.new(2, 2, 1),
+        HitboxExpanded = false
     }
 }
 
--- Elementos do Desenho (Drawing API)
+-- Biblioteca de Desenho (Drawing) para os Visuais
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
@@ -47,12 +49,12 @@ FOVCircle.Filled = false
 FOVCircle.Transparency = 1
 
 -- ============================================
--- LÓGICA DE SISTEMAS (BACKEND)
+-- LÓGICA CORE (AIMBOT E ESP)
 -- ============================================
 
-local function isEnemy(targetPlayer)
+local function IsEnemy(target)
     if not Settings.AIMBOT.TeamCheck then return true end
-    return targetPlayer.Team ~= player.Team
+    return target.Team ~= player.Team
 end
 
 local function GetClosestPlayer()
@@ -61,7 +63,7 @@ local function GetClosestPlayer()
 
     for _, v in pairs(Players:GetPlayers()) do
         if v ~= player and v.Character and v.Character:FindFirstChild(Settings.AIMBOT.TargetPart) then
-            if isEnemy(v) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            if IsEnemy(v) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(v.Character[Settings.AIMBOT.TargetPart].Position)
                 if onScreen then
                     local mousePos = UserInputService:GetMouseLocation()
@@ -77,65 +79,56 @@ local function GetClosestPlayer()
     return target
 end
 
-local function CreateESP(targetPlayer)
+-- Gerenciador de ESP para cada Player
+local function AddESP(targetPlayer)
     local Box = Drawing.new("Square")
-    local Tracer = Drawing.new("Line")
-    local Label = Drawing.new("Text")
+    local Line = Drawing.new("Line")
+    local DistanceText = Drawing.new("Text")
 
-    local function Update()
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and targetPlayer.Parent ~= nil then
-                local root = targetPlayer.Character.HumanoidRootPart
-                local head = targetPlayer.Character:FindFirstChild("Head")
-                local hum = targetPlayer.Character:FindFirstChild("Humanoid")
-                
-                local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                
-                if onScreen and isEnemy(targetPlayer) and hum and hum.Health > 0 then
-                    -- ESP Box
-                    if Settings.ESP.Box then
-                        local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                        local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                        Box.Size = Vector2.new(2000 / pos.Z, headPos.Y - legPos.Y)
-                        Box.Position = Vector2.new(pos.X - Box.Size.X / 2, pos.Y - Box.Size.Y / 2)
-                        Box.Color = Settings.ESP.Color
-                        Box.Visible = true
-                    else Box.Visible = false end
+    RunService.RenderStepped:Connect(function()
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and targetPlayer.Parent then
+            local root = targetPlayer.Character.HumanoidRootPart
+            local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
 
-                    -- ESP Line
-                    if Settings.ESP.Line then
-                        Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                        Tracer.To = Vector2.new(pos.X, pos.Y)
-                        Tracer.Color = Settings.ESP.Color
-                        Tracer.Visible = true
-                    else Tracer.Visible = false end
+            if onScreen and IsEnemy(targetPlayer) and hum and hum.Health > 0 then
+                -- Configuração da Box
+                if Settings.ESP.Box then
+                    Box.Size = Vector2.new(2000 / pos.Z, 2500 / pos.Z)
+                    Box.Position = Vector2.new(pos.X - Box.Size.X / 2, pos.Y - Box.Size.Y / 2)
+                    Box.Color = Settings.ESP.Color
+                    Box.Visible = true
+                else Box.Visible = false end
 
-                    -- ESP Info (Vida e Distância)
-                    if Settings.ESP.Distance or Settings.ESP.Health then
-                        local dist = math.floor((player.Character.HumanoidRootPart.Position - root.Position).Magnitude)
-                        Label.Text = (Settings.ESP.Health and "HP: "..math.floor(hum.Health).." | " or "") .. (Settings.ESP.Distance and dist.."m" or "")
-                        Label.Position = Vector2.new(pos.X, pos.Y + 20)
-                        Label.Center = true
-                        Label.Size = 14
-                        Label.Outline = true
-                        Label.Color = Color3.new(1,1,1)
-                        Label.Visible = true
-                    else Label.Visible = false end
-                else
-                    Box.Visible = false Tracer.Visible = false Label.Visible = false
-                end
+                -- Configuração da Line
+                if Settings.ESP.Line then
+                    Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    Line.To = Vector2.new(pos.X, pos.Y)
+                    Line.Color = Settings.ESP.Color
+                    Line.Visible = true
+                else Line.Visible = false end
+
+                -- Configuração de Distância/Vida
+                if Settings.ESP.Distance or Settings.ESP.Health then
+                    local dist = math.floor((player.Character.HumanoidRootPart.Position - root.Position).Magnitude)
+                    DistanceText.Text = (Settings.ESP.Health and "HP: "..math.floor(hum.Health).." | " or "") .. (Settings.ESP.Distance and dist.."m" or "")
+                    DistanceText.Position = Vector2.new(pos.X, pos.Y + (Box.Size.Y / 2))
+                    DistanceText.Center = true
+                    DistanceText.Outline = true
+                    DistanceText.Size = 14
+                    DistanceText.Visible = true
+                else DistanceText.Visible = false end
             else
-                Box.Visible = false Tracer.Visible = false Label.Visible = false
-                if not targetPlayer.Parent then connection:Disconnect() end
+                Box.Visible = false Line.Visible = false DistanceText.Visible = false
             end
-        end)
-    end
-    coroutine.wrap(Update)()
+        else
+            Box.Visible = false Line.Visible = false DistanceText.Visible = false
+        end
+    end)
 end
 
 -- ============================================
--- CRIAÇÃO DA INTERFACE (FRONTEND)
+-- INTERFACE PRINCIPAL (SUA GUI ORIGINAL)
 -- ============================================
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -144,18 +137,18 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = playerGui
 
 local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "TripleTapToggle"
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
 ToggleButton.Position = UDim2.new(0.95, -25, 0.1, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.Text = "☰"
-ToggleButton.TextColor3 = Color3.new(1,1,1)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.Visible = false
 ToggleButton.Parent = ScreenGui
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 10)
-ToggleCorner.Parent = ToggleButton
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
 
 local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainMenu"
 MainFrame.Size = UDim2.new(0, 500, 0, 350)
 MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
@@ -165,80 +158,159 @@ MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
 
--- [ELEMENTOS DE UI INTERNOS]
-local TabContainer = Instance.new("Frame")
+-- [CONTAINERS]
+local TitleBar = Instance.new("Frame", MainFrame)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+
+local CloseButton = Instance.new("TextButton", TitleBar)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0.5, -15)
+CloseButton.Text = "X"
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+
+local TabContainer = Instance.new("Frame", MainFrame)
 TabContainer.Size = UDim2.new(0, 120, 1, -50)
 TabContainer.Position = UDim2.new(0, 10, 0, 45)
 TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-TabContainer.Parent = MainFrame
 
-local ContentContainer = Instance.new("Frame")
+local ContentContainer = Instance.new("Frame", MainFrame)
 ContentContainer.Size = UDim2.new(1, -140, 1, -50)
 ContentContainer.Position = UDim2.new(0, 135, 0, 45)
 ContentContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ContentContainer.Parent = MainFrame
 
--- Funções de criação de botões (Reutilizando sua lógica)
+-- ============================================
+-- FUNÇÕES DE CRIAÇÃO (SEU ESTILO)
+-- ============================================
+
 local function CreateToggle(parent, text, pos, callback)
-    local frame = Instance.new("Frame")
+    local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(0.9, 0, 0, 40)
     frame.Position = pos
     frame.BackgroundTransparency = 1
-    frame.Parent = parent
     
-    local label = Instance.new("TextLabel")
+    local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(0.7, 0, 1, 0)
     label.Text = text
-    label.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
     label.BackgroundTransparency = 1
-    label.Font = Enum.Font.GothamSemibold
-    label.Parent = frame
+    label.TextXAlignment = Enum.TextXAlignment.Left
     
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 50, 0, 25)
-    btn.Position = UDim2.new(1, -55, 0.5, -12.5)
-    btn.Text = "OFF"
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,65)
-    btn.Parent = frame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+    local toggleBtn = Instance.new("TextButton", frame)
+    toggleBtn.Size = UDim2.new(0, 50, 0, 25)
+    toggleBtn.Position = UDim2.new(1, -55, 0.5, -12.5)
+    toggleBtn.Text = "OFF"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 12)
     
-    local active = false
-    btn.MouseButton1Click:Connect(function()
-        active = not active
-        btn.Text = active and "ON" or "OFF"
-        btn.BackgroundColor3 = active and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(60,60,65)
-        callback(active)
+    local enabled = false
+    toggleBtn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        toggleBtn.Text = enabled and "ON" or "OFF"
+        toggleBtn.BackgroundColor3 = enabled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(60, 60, 65)
+        callback(enabled)
+    end)
+end
+
+local function CreateSlider(parent, text, pos, min, max, default, callback)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(0.9, 0, 0, 50)
+    frame.Position = pos
+    frame.BackgroundTransparency = 1
+    
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Text = text .. ": " .. default
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.BackgroundTransparency = 1
+    
+    local sliderBg = Instance.new("Frame", frame)
+    sliderBg.Size = UDim2.new(1, 0, 0, 8)
+    sliderBg.Position = UDim2.new(0, 0, 0, 30)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    
+    local sliderFill = Instance.new("Frame", sliderBg)
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    
+    local dragging = false
+    local function UpdateSlider(input)
+        local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + (pos * (max - min)))
+        sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+        label.Text = text .. ": " .. val
+        callback(val)
+    end
+
+    sliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then UpdateSlider(input) end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
 end
 
 -- ============================================
--- ABAS E FUNÇÕES
+-- CONFIGURAÇÃO DAS ABAS (MANTENDO SEU DESIGN)
 -- ============================================
 
-local ESPContent = Instance.new("ScrollingFrame", ContentContainer)
-ESPContent.Size = UDim2.new(1,0,1,0)
-ESPContent.BackgroundTransparency = 1
+local TabButtons = {}
+local TabFrames = {}
 
-CreateToggle(ESPContent, "ESP Box", UDim2.new(0.05,0,0,10), function(v) Settings.ESP.Box = v end)
-CreateToggle(ESPContent, "ESP Line", UDim2.new(0.05,0,0,55), function(v) Settings.ESP.Line = v end)
-CreateToggle(ESPContent, "ESP Distance", UDim2.new(0.05,0,0,100), function(v) Settings.ESP.Distance = v end)
-CreateToggle(ESPContent, "ESP Health", UDim2.new(0.05,0,0,145), function(v) Settings.ESP.Health = v end)
+local function CreateTab(name, icon)
+    local btn = Instance.new("TextButton", TabContainer)
+    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.Position = UDim2.new(0.05, 0, 0, #TabButtons * 45 + 10)
+    btn.Text = icon .. " " .. name
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
-local AimContent = Instance.new("ScrollingFrame", ContentContainer)
-AimContent.Size = UDim2.new(1,0,1,0)
-AimContent.BackgroundTransparency = 1
-AimContent.Visible = false
+    local frame = Instance.new("ScrollingFrame", ContentContainer)
+    frame.Size = UDim2.new(1, -10, 1, -10)
+    frame.BackgroundTransparency = 1
+    frame.Visible = false
+    frame.CanvasSize = UDim2.new(0,0,0,400)
 
-CreateToggle(AimContent, "Ativar Aimbot", UDim2.new(0.05,0,0,10), function(v) Settings.AIMBOT.Enabled = v end)
-CreateToggle(AimContent, "Mostrar FOV", UDim2.new(0.05,0,0,55), function(v) Settings.AIMBOT.ShowFOV = v end)
-CreateToggle(AimContent, "Team Check", UDim2.new(0.05,0,0,100), function(v) Settings.AIMBOT.TeamCheck = v end)
+    btn.MouseButton1Click:Connect(function()
+        for _, v in pairs(TabFrames) do v.Visible = false end
+        frame.Visible = true
+    end)
 
--- [LOOP PRINCIPAL DE ATUALIZAÇÃO]
+    table.insert(TabButtons, btn)
+    table.insert(TabFrames, frame)
+    return frame
+end
+
+-- [ABA ESP]
+local ESPTab = CreateTab("ESP", "👁️")
+CreateToggle(ESPTab, "ESP Box", UDim2.new(0.05,0,0,10), function(v) Settings.ESP.Box = v end)
+CreateToggle(ESPTab, "ESP Line", UDim2.new(0.05,0,0,55), function(v) Settings.ESP.Line = v end)
+CreateToggle(ESPTab, "ESP Distance", UDim2.new(0.05,0,0,100), function(v) Settings.ESP.Distance = v end)
+CreateToggle(ESPTab, "ESP Health", UDim2.new(0.05,0,0,145), function(v) Settings.ESP.Health = v end)
+
+-- [ABA AIMBOT]
+local AimTab = CreateTab("AIM", "🎯")
+CreateToggle(AimTab, "Ativar Aimbot", UDim2.new(0.05,0,0,10), function(v) Settings.AIMBOT.Enabled = v end)
+CreateToggle(AimTab, "Mostrar FOV", UDim2.new(0.05,0,0,55), function(v) Settings.AIMBOT.ShowFOV = v end)
+CreateSlider(AimTab, "Tamanho FOV", UDim2.new(0.05,0,0,100), 10, 500, 100, function(v) Settings.AIMBOT.FOV = v end)
+CreateSlider(AimTab, "Suavização", UDim2.new(0.05,0,0,155), 1, 10, 5, function(v) Settings.AIMBOT.Smoothness = v/10 end)
+CreateToggle(AimTab, "Team Check", UDim2.new(0.05,0,0,210), function(v) Settings.AIMBOT.TeamCheck = v end)
+
+-- ============================================
+-- LOOP DE EXECUÇÃO (O QUE FAZ TUDO FUNCIONAR)
+-- ============================================
+
 RunService.RenderStepped:Connect(function()
+    -- Atualizar Círculo de FOV
     FOVCircle.Visible = Settings.AIMBOT.ShowFOV
     FOVCircle.Radius = Settings.AIMBOT.FOV
     FOVCircle.Position = UserInputService:GetMouseLocation()
 
+    -- Lógica do Aimbot
     if Settings.AIMBOT.Enabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local target = GetClosestPlayer()
         if target then
@@ -248,29 +320,21 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fechar e Abrir
-ToggleButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
-
--- Sistema de 3 Toques (Triple Tap)
+-- Sistema de 3 Toques e Abrir Menu
 local tapCount = 0
 local lastTap = 0
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        if tick() - lastTap < 0.5 then
-            tapCount = tapCount + 1
-        else
-            tapCount = 1
-        end
-        lastTap = tick()
-        if tapCount >= 3 then
-            ToggleButton.Visible = not ToggleButton.Visible
-            tapCount = 0
-        end
-    end
+UserInputService.TouchTapInWorld:Connect(function()
+    if tick() - lastTap < 0.5 then tapCount = tapCount + 1 else tapCount = 1 end
+    lastTap = tick()
+    if tapCount >= 3 then ToggleButton.Visible = not ToggleButton.Visible end
 end)
 
--- Inicialização
-for _, p in pairs(Players:GetPlayers()) do if p ~= player then CreateESP(p) end end
-Players.PlayerAdded:Connect(CreateESP)
+ToggleButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+CloseButton.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
-print("Interface Completa Carregada!")
+-- Inicializar ESP para jogadores
+for _, p in pairs(Players:GetPlayers()) do if p ~= player then AddESP(p) end end
+Players.PlayerAdded:Connect(AddESP)
+
+TabFrames[1].Visible = true -- Mostra a primeira aba por padrão
+print("Sistemas e GUI carregados com sucesso!")
