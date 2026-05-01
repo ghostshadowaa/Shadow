@@ -1,8 +1,4 @@
 
-# Script SIMPLIFICADO - Botão aparece automaticamente, sem toques
-script_simples = '''-- ============================================
--- INTERFACE GUI DELTA - VERSÃO SIMPLES
--- Botão aparece automaticamente ao executar
 -- ESP + AIMBOT FUNCIONAIS
 -- ============================================
 
