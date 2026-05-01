@@ -1,8 +1,9 @@
 
-# Script COMPLETAMENTE reescrito para Delta - corrigindo todos os erros
-script_delta_v2 = '''-- ============================================
--- INTERFACE GUI DELTA - VERSÃO CORRIGIDA
--- ESP + AIMBOT + SISTEMA 3 TOQUES FUNCIONAL
+# Script SIMPLIFICADO - Botão aparece automaticamente, sem toques
+script_simples = '''-- ============================================
+-- INTERFACE GUI DELTA - VERSÃO SIMPLES
+-- Botão aparece automaticamente ao executar
+-- ESP + AIMBOT FUNCIONAIS
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -12,14 +13,13 @@ local TweenService = game:GetService("TweenService")
 local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
-local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local mouse = player:GetMouse()
 
 -- ============================================
--- CONFIGURAÇÕES GLOBAIS
+-- CONFIGURAÇÕES
 -- ============================================
 local Settings = {
     ESP = {
@@ -52,16 +52,7 @@ local Settings = {
 }
 
 -- ============================================
--- VARIÁVEIS DO SISTEMA 3 TOQUES
--- ============================================
-local tapCount = 0
-local lastTapTime = 0
-local TAP_TIMEOUT = 0.8
-local REQUIRED_TAPS = 3
-local toggleButtonVisible = false
-
--- ============================================
--- SISTEMA ESP FUNCIONAL
+-- ESP SYSTEM
 -- ============================================
 local ESPObjects = {}
 
@@ -136,7 +127,6 @@ end
 
 local function RemoveESP(targetPlayer)
     if not ESPObjects[targetPlayer] then return end
-    
     local esp = ESPObjects[targetPlayer]
     
     pcall(function()
@@ -147,12 +137,9 @@ local function RemoveESP(targetPlayer)
         if esp.Distance then esp.Distance:Remove() end
         if esp.Name then esp.Name:Remove() end
         if esp.Tracer then esp.Tracer:Remove() end
-        
         if esp.Skeleton then
             for i = 1, #esp.Skeleton do
-                if esp.Skeleton[i] then
-                    esp.Skeleton[i]:Remove()
-                end
+                if esp.Skeleton[i] then esp.Skeleton[i]:Remove() end
             end
         end
     end)
@@ -231,7 +218,6 @@ local function UpdateESP()
             end
         end
         
-        -- Distância
         local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
         if distance > Settings.ESP.MaxDistance then
             pcall(function()
@@ -251,7 +237,6 @@ local function UpdateESP()
             continue
         end
         
-        -- Posição na tela
         local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
         local footPos, footOnScreen = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
         
@@ -287,7 +272,6 @@ local function UpdateESP()
                 esp.Box.Position = boxPosition
                 esp.Box.Color = Settings.ESP.Color
                 esp.Box.Visible = true
-                
                 esp.BoxFilled.Size = Vector2.new(boxWidth, boxHeight)
                 esp.BoxFilled.Position = boxPosition
                 esp.BoxFilled.Visible = true
@@ -359,11 +343,9 @@ local function UpdateESP()
                 local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
                 local barHeight = boxHeight * healthPercent
                 local barWidth = 4
-                
                 esp.HealthBg.Size = Vector2.new(barWidth, boxHeight)
                 esp.HealthBg.Position = Vector2.new(boxPosition.X - barWidth - 2, boxPosition.Y)
                 esp.HealthBg.Visible = true
-                
                 esp.HealthBar.Size = Vector2.new(barWidth, barHeight)
                 esp.HealthBar.Position = Vector2.new(boxPosition.X - barWidth - 2, boxPosition.Y + (boxHeight - barHeight))
                 esp.HealthBar.Color = Color3.new(1 - healthPercent, healthPercent, 0)
@@ -416,7 +398,7 @@ local function UpdateESP()
 end
 
 -- ============================================
--- SISTEMA AIMBOT
+-- AIMBOT SYSTEM
 -- ============================================
 local FOV_Circle = Drawing.new("Circle")
 FOV_Circle.Visible = false
@@ -501,7 +483,7 @@ local function UpdateFOV()
 end
 
 -- ============================================
--- INTERFACE GUI
+-- GUI INTERFACE
 -- ============================================
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -510,7 +492,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = playerGui
 
--- Botão flutuante - CANTO SUPERIOR DIREITO
+-- BOTÃO FLUTUANTE - APARECE AUTOMATICAMENTE
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "MenuToggle"
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
@@ -523,7 +505,7 @@ ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextSize = 20
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.BorderSizePixel = 0
-ToggleButton.Visible = false
+ToggleButton.Visible = true  -- APARECE AUTOMATICAMENTE!
 ToggleButton.Parent = ScreenGui
 
 local ToggleCorner = Instance.new("UICorner")
@@ -1128,75 +1110,7 @@ CreateSlider(CLIENTContent, "Pulo", UDim2.new(0.05, 0, 0, 285), 50, 300, 50, fun
 end)
 
 -- ============================================
--- SISTEMA DE 3 TOQUES - VERSÃO CORRIGIDA
--- ============================================
-
--- Método 1: TouchTapInWorld (mobile)
-UserInputService.TouchTapInWorld:Connect(function(position, processedByUI)
-    if processedByUI then return end
-    
-    local currentTime = tick()
-    
-    if currentTime - lastTapTime > TAP_TIMEOUT then
-        tapCount = 0
-    end
-    
-    tapCount = tapCount + 1
-    lastTapTime = currentTime
-    
-    if tapCount >= REQUIRED_TAPS then
-        tapCount = 0
-        toggleButtonVisible = not toggleButtonVisible
-        ToggleButton.Visible = toggleButtonVisible
-        
-        -- Feedback
-        local feedback = Instance.new("TextLabel")
-        feedback.Size = UDim2.new(0, 220, 0, 50)
-        feedback.Position = UDim2.new(0.5, -110, 0.85, 0)
-        feedback.BackgroundColor3 = toggleButtonVisible and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(255, 50, 50)
-        feedback.Text = toggleButtonVisible and "🔓 Botão Ativado" or "🔒 Botão Desativado"
-        feedback.TextColor3 = Color3.fromRGB(255, 255, 255)
-        feedback.TextSize = 16
-        feedback.Font = Enum.Font.GothamBold
-        feedback.Parent = ScreenGui
-        
-        local fbCorner = Instance.new("UICorner")
-        fbCorner.CornerRadius = UDim.new(0, 10)
-        fbCorner.Parent = feedback
-        
-        TweenService:Create(feedback, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
-            BackgroundTransparency = 1,
-            TextTransparency = 1
-        }):Play()
-        
-        game:GetService("Debris"):AddItem(feedback, 1)
-    end
-end)
-
--- Método 2: InputBegan para PC (mouse)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local currentTime = tick()
-        
-        if currentTime - lastTapTime > TAP_TIMEOUT then
-            tapCount = 0
-        end
-        
-        tapCount = tapCount + 1
-        lastTapTime = currentTime
-        
-        if tapCount >= REQUIRED_TAPS then
-            tapCount = 0
-            toggleButtonVisible = not toggleButtonVisible
-            ToggleButton.Visible = toggleButtonVisible
-        end
-    end
-end)
-
--- ============================================
--- BOTÃO TOGGLE DO MENU
+-- BOTÃO TOGGLE DO MENU (ABRIR/FECHAR)
 -- ============================================
 
 ToggleButton.MouseButton1Click:Connect(function()
@@ -1246,7 +1160,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- INICIALIZAÇÃO
+-- INICIALIZAÇÃO - BOTÃO APARECE AUTOMATICO
 -- ============================================
 
 Tabs[1].BackgroundColor3 = Color3.fromRGB(0, 150, 255)
@@ -1255,7 +1169,7 @@ TabContents["ESP"].Visible = true
 
 -- Notificação
 local Notif = Instance.new("Frame")
-Notif.Size = UDim2.new(0, 320, 0, 70)
+Notif.Size = UDim2.new(0, 320, 0, 60)
 Notif.Position = UDim2.new(0.5, -160, 0, -80)
 Notif.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Notif.BorderSizePixel = 0
@@ -1274,7 +1188,7 @@ local NotifText = Instance.new("TextLabel")
 NotifText.Size = UDim2.new(1, -20, 1, 0)
 NotifText.Position = UDim2.new(0, 10, 0, 0)
 NotifText.BackgroundTransparency = 1
-NotifText.Text = "✅ Interface Carregada!\\nToque 3x na tela para ativar o botão"
+NotifText.Text = "✅ Interface Carregada!\\nClique em ☰ para abrir o menu"
 NotifText.TextColor3 = Color3.fromRGB(255, 255, 255)
 NotifText.TextSize = 14
 NotifText.Font = Enum.Font.GothamSemibold
@@ -1284,18 +1198,19 @@ TweenService:Create(Notif, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.Easing
     Position = UDim2.new(0.5, -160, 0, 20)
 }):Play()
 
-wait(4)
+wait(3)
 TweenService:Create(Notif, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
     Position = UDim2.new(0.5, -160, 0, -80)
 }):Play()
 game:GetService("Debris"):AddItem(Notif, 1)
 
 print("=== INTERFACE CARREGADA ===")
-print("✅ Toque 3x na tela para mostrar/esconder o botão ☰")
+print("✅ Botão ☰ visível no canto superior direito")
+print("✅ Clique no botão para abrir/fechar o menu")
 '''
 
-with open('/mnt/agents/output/delta_v2_corrigido.lua', 'w', encoding='utf-8') as f:
-    f.write(script_delta_v2)
+with open('/mnt/agents/output/delta_simples_botao_auto.lua', 'w', encoding='utf-8') as f:
+    f.write(script_simples)
 
-print("✅ Script V2 corrigido salvo!")
-print(f"Tamanho: {len(script_delta_v2)} caracteres")
+print("✅ Script simplificado salvo!")
+print(f"Tamanho: {len(script_simples)} caracteres")
