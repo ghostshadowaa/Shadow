@@ -1,8 +1,8 @@
 
-# Vou criar o script Lua completo e salvar como arquivo
-script_content = '''-- ============================================
--- INTERFACE GUI COMPLETA - ROBLOX
--- ESP FUNCIONAL + AIMBOT + SISTEMA 3 TOQUES
+# Script corrigido e otimizado para Delta Executor
+script_delta = '''-- ============================================
+-- INTERFACE GUI - COMPATÍVEL COM DELTA EXECUTOR
+-- ESP + AIMBOT FUNCIONAIS + SISTEMA 3 TOQUES
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -51,25 +51,11 @@ local Settings = {
 }
 
 -- ============================================
--- SISTEMA ESP FUNCIONAL COM DRAWING
+-- SISTEMA ESP FUNCIONAL - DRAWING API
 -- ============================================
 local ESPObjects = {}
 
-local function ClearESP()
-    for _, obj in pairs(ESPObjects) do
-        for key, drawing in pairs(obj) do
-            if key == "Skeleton" then
-                for _, line in pairs(drawing) do
-                    if line and line.Remove then line:Remove() end
-                end
-            elseif drawing and drawing.Remove then
-                drawing:Remove()
-            end
-        end
-    end
-    ESPObjects = {}
-end
-
+-- Função para criar ESP de um jogador
 local function CreateESP(targetPlayer)
     if targetPlayer == player then return end
     if ESPObjects[targetPlayer] then return end
@@ -92,7 +78,7 @@ local function CreateESP(targetPlayer)
     esp.BoxFilled.Transparency = 0.3
     esp.BoxFilled.Filled = true
     
-    -- ESP Skeleton lines
+    -- ESP Skeleton lines (10 linhas)
     esp.Skeleton = {}
     for i = 1, 10 do
         local line = Drawing.new("Line")
@@ -100,7 +86,7 @@ local function CreateESP(targetPlayer)
         line.Thickness = 1.5
         line.Color = Settings.ESP.Color
         line.Transparency = 0.8
-        table.insert(esp.Skeleton, line)
+        esp.Skeleton[i] = line
     end
     
     -- Health Bar Background
@@ -145,18 +131,57 @@ local function CreateESP(targetPlayer)
     ESPObjects[targetPlayer] = esp
 end
 
+-- Função para remover ESP
+local function RemoveESP(targetPlayer)
+    if not ESPObjects[targetPlayer] then return end
+    
+    local esp = ESPObjects[targetPlayer]
+    
+    -- Remover cada objeto Drawing
+    if esp.Box then esp.Box:Remove() end
+    if esp.BoxFilled then esp.BoxFilled:Remove() end
+    if esp.HealthBg then esp.HealthBg:Remove() end
+    if esp.HealthBar then esp.HealthBar:Remove() end
+    if esp.Distance then esp.Distance:Remove() end
+    if esp.Name then esp.Name:Remove() end
+    if esp.Tracer then esp.Tracer:Remove() end
+    
+    -- Remover linhas do skeleton
+    if esp.Skeleton then
+        for i = 1, #esp.Skeleton do
+            if esp.Skeleton[i] then
+                esp.Skeleton[i]:Remove()
+            end
+        end
+    end
+    
+    ESPObjects[targetPlayer] = nil
+end
+
 -- ============================================
--- ATUALIZAR ESP
+-- ATUALIZAR ESP - LOOP PRINCIPAL
 -- ============================================
 local function UpdateESP()
     for targetPlayer, esp in pairs(ESPObjects) do
+        -- Verificar se jogador ainda existe
+        if not targetPlayer or not targetPlayer.Parent then
+            RemoveESP(targetPlayer)
+            continue
+        end
+        
         local character = targetPlayer.Character
         if not character then
-            for key, obj in pairs(esp) do
-                if key == "Skeleton" then
-                    for _, line in pairs(obj) do line.Visible = false end
-                elseif obj.Visible ~= nil then
-                    obj.Visible = false
+            -- Esconder tudo se não tiver personagem
+            if esp.Box then esp.Box.Visible = false end
+            if esp.BoxFilled then esp.BoxFilled.Visible = false end
+            if esp.HealthBg then esp.HealthBg.Visible = false end
+            if esp.HealthBar then esp.HealthBar.Visible = false end
+            if esp.Distance then esp.Distance.Visible = false end
+            if esp.Name then esp.Name.Visible = false end
+            if esp.Tracer then esp.Tracer.Visible = false end
+            if esp.Skeleton then
+                for i = 1, #esp.Skeleton do
+                    if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
                 end
             end
             continue
@@ -167,23 +192,33 @@ local function UpdateESP()
         local head = character:FindFirstChild("Head")
         
         if not humanoid or not hrp or not head then
-            for key, obj in pairs(esp) do
-                if key == "Skeleton" then
-                    for _, line in pairs(obj) do line.Visible = false end
-                elseif obj.Visible ~= nil then
-                    obj.Visible = false
+            if esp.Box then esp.Box.Visible = false end
+            if esp.BoxFilled then esp.BoxFilled.Visible = false end
+            if esp.HealthBg then esp.HealthBg.Visible = false end
+            if esp.HealthBar then esp.HealthBar.Visible = false end
+            if esp.Distance then esp.Distance.Visible = false end
+            if esp.Name then esp.Name.Visible = false end
+            if esp.Tracer then esp.Tracer.Visible = false end
+            if esp.Skeleton then
+                for i = 1, #esp.Skeleton do
+                    if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
                 end
             end
             continue
         end
         
         -- Team Check
-        if Settings.ESP.TeamCheck and targetPlayer.Team == player.Team then
-            for key, obj in pairs(esp) do
-                if key == "Skeleton" then
-                    for _, line in pairs(obj) do line.Visible = false end
-                elseif obj.Visible ~= nil then
-                    obj.Visible = false
+        if Settings.ESP.TeamCheck and targetPlayer.Team and player.Team and targetPlayer.Team == player.Team then
+            if esp.Box then esp.Box.Visible = false end
+            if esp.BoxFilled then esp.BoxFilled.Visible = false end
+            if esp.HealthBg then esp.HealthBg.Visible = false end
+            if esp.HealthBar then esp.HealthBar.Visible = false end
+            if esp.Distance then esp.Distance.Visible = false end
+            if esp.Name then esp.Name.Visible = false end
+            if esp.Tracer then esp.Tracer.Visible = false end
+            if esp.Skeleton then
+                for i = 1, #esp.Skeleton do
+                    if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
                 end
             end
             continue
@@ -192,11 +227,16 @@ local function UpdateESP()
         -- Verificar distância
         local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
         if distance > Settings.ESP.MaxDistance then
-            for key, obj in pairs(esp) do
-                if key == "Skeleton" then
-                    for _, line in pairs(obj) do line.Visible = false end
-                elseif obj.Visible ~= nil then
-                    obj.Visible = false
+            if esp.Box then esp.Box.Visible = false end
+            if esp.BoxFilled then esp.BoxFilled.Visible = false end
+            if esp.HealthBg then esp.HealthBg.Visible = false end
+            if esp.HealthBar then esp.HealthBar.Visible = false end
+            if esp.Distance then esp.Distance.Visible = false end
+            if esp.Name then esp.Name.Visible = false end
+            if esp.Tracer then esp.Tracer.Visible = false end
+            if esp.Skeleton then
+                for i = 1, #esp.Skeleton do
+                    if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
                 end
             end
             continue
@@ -207,11 +247,16 @@ local function UpdateESP()
         local footPos, footOnScreen = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
         
         if not headOnScreen and not footOnScreen then
-            for key, obj in pairs(esp) do
-                if key == "Skeleton" then
-                    for _, line in pairs(obj) do line.Visible = false end
-                elseif obj.Visible ~= nil then
-                    obj.Visible = false
+            if esp.Box then esp.Box.Visible = false end
+            if esp.BoxFilled then esp.BoxFilled.Visible = false end
+            if esp.HealthBg then esp.HealthBg.Visible = false end
+            if esp.HealthBar then esp.HealthBar.Visible = false end
+            if esp.Distance then esp.Distance.Visible = false end
+            if esp.Name then esp.Name.Visible = false end
+            if esp.Tracer then esp.Tracer.Visible = false end
+            if esp.Skeleton then
+                for i = 1, #esp.Skeleton do
+                    if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
                 end
             end
             continue
@@ -260,8 +305,9 @@ local function UpdateESP()
                 {3, 8}, {8, 9}, {3, 10}, {10, 11},
             }
             
-            for i, line in ipairs(esp.Skeleton) do
-                if connections[i] then
+            for i = 1, math.min(#connections, #esp.Skeleton) do
+                local line = esp.Skeleton[i]
+                if line and connections[i] then
                     local part1 = joints[connections[i][1]]
                     local part2 = joints[connections[i][2]]
                     if part1 and part2 then
@@ -278,19 +324,19 @@ local function UpdateESP()
                     else
                         line.Visible = false
                     end
-                else
+                elseif line then
                     line.Visible = false
                 end
             end
         else
-            for _, line in ipairs(esp.Skeleton) do
-                line.Visible = false
+            for i = 1, #esp.Skeleton do
+                if esp.Skeleton[i] then esp.Skeleton[i].Visible = false end
             end
         end
         
         -- ESP Health
         if Settings.ESP.Health then
-            local healthPercent = humanoid.Health / humanoid.MaxHealth
+            local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
             local barHeight = boxHeight * healthPercent
             local barWidth = 4
             
@@ -316,11 +362,13 @@ local function UpdateESP()
             esp.Distance.Visible = false
         end
         
-        -- ESP Name
-        esp.Name.Text = targetPlayer.Name .. " [" .. math.floor(humanoid.Health) .. " HP]"
-        esp.Name.Position = Vector2.new(boxPosition.X + boxWidth / 2, boxPosition.Y - 20)
-        esp.Name.Color = Settings.ESP.Color
-        esp.Name.Visible = true
+        -- ESP Name (sempre visível se ESP estiver ativo)
+        if esp.Name then
+            esp.Name.Text = targetPlayer.Name .. " [" .. math.floor(humanoid.Health) .. " HP]"
+            esp.Name.Position = Vector2.new(boxPosition.X + boxWidth / 2, boxPosition.Y - 20)
+            esp.Name.Color = Settings.ESP.Color
+            esp.Name.Visible = true
+        end
         
         -- ESP Line (Tracer)
         if Settings.ESP.Line then
@@ -345,10 +393,11 @@ FOV_Circle.Transparency = 0.7
 FOV_Circle.Filled = false
 FOV_Circle.NumSides = 64
 
+-- Função para pegar jogador mais próximo do centro da tela
 local function GetClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = Settings.AIMBOT.FOV
-    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
     for _, targetPlayer in ipairs(Players:GetPlayers()) do
         if targetPlayer == player then continue end
@@ -362,7 +411,7 @@ local function GetClosestPlayer()
         if not humanoid or humanoid.Health <= 0 or not targetPart then continue end
         
         -- Team Check
-        if Settings.AIMBOT.TeamCheck and targetPlayer.Team == player.Team then continue end
+        if Settings.AIMBOT.TeamCheck and targetPlayer.Team and player.Team and targetPlayer.Team == player.Team then continue end
         
         -- Wall Check
         if Settings.AIMBOT.WallCheck then
@@ -376,7 +425,7 @@ local function GetClosestPlayer()
         local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
         if not onScreen then continue end
         
-        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
         
         if distance < shortestDistance then
             closestPlayer = targetPlayer
@@ -387,6 +436,7 @@ local function GetClosestPlayer()
     return closestPlayer
 end
 
+-- Função Aimbot
 local function Aimbot()
     if not Settings.AIMBOT.Enabled then return end
     
@@ -402,11 +452,13 @@ local function Aimbot()
     
     local moveVector = (Vector2.new(targetPos.X, targetPos.Y) - mousePos) * Settings.AIMBOT.Smoothness
     
-    -- Mover mouse
-    mousemoverel(moveVector.X, moveVector.Y)
+    -- Delta Executor usa mousemoverel
+    pcall(function()
+        mousemoverel(moveVector.X, moveVector.Y)
+    end)
 end
 
--- Atualizar FOV Circle - CENTRO DA TELA
+-- Atualizar FOV Circle - CENTRO DA TELA FIXO
 local function UpdateFOV()
     if Settings.AIMBOT.ShowFOV then
         FOV_Circle.Radius = Settings.AIMBOT.FOV
@@ -428,7 +480,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = playerGui
 
--- Botão de toggle (3 toques) - NO CANTO SUPERIOR DIREITO
+-- Botão de toggle (3 toques) - CANTO SUPERIOR DIREITO
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "TripleTapToggle"
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
@@ -448,13 +500,12 @@ local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(0, 12)
 ToggleCorner.Parent = ToggleButton
 
--- Stroke do botão toggle
 local ToggleStroke = Instance.new("UIStroke")
 ToggleStroke.Color = Color3.fromRGB(0, 150, 255)
 ToggleStroke.Thickness = 2
 ToggleStroke.Parent = ToggleButton
 
--- Janela principal do menu
+-- Janela principal
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainMenu"
 MainFrame.Size = UDim2.new(0, 500, 0, 350)
@@ -484,10 +535,6 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 15)
-TitleCorner.Parent = TitleBar
-
 local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -40, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
@@ -515,7 +562,7 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 8)
 CloseCorner.Parent = CloseButton
 
--- Container de abas (lateral esquerda)
+-- Container de abas
 local TabContainer = Instance.new("Frame")
 TabContainer.Name = "TabContainer"
 TabContainer.Size = UDim2.new(0, 120, 1, -50)
@@ -528,7 +575,7 @@ local TabCorner = Instance.new("UICorner")
 TabCorner.CornerRadius = UDim.new(0, 10)
 TabCorner.Parent = TabContainer
 
--- Container de conteúdo (direita)
+-- Container de conteúdo
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Name = "ContentContainer"
 ContentContainer.Size = UDim2.new(1, -140, 1, -50)
@@ -542,7 +589,7 @@ ContentCorner.CornerRadius = UDim.new(0, 10)
 ContentCorner.Parent = ContentContainer
 
 -- ============================================
--- FUNÇÕES UTILITÁRIAS DA GUI
+-- FUNÇÕES DA GUI
 -- ============================================
 
 local function CreateToggle(parent, text, pos, callback)
@@ -571,7 +618,6 @@ local function CreateToggle(parent, text, pos, callback)
     toggleBtn.TextSize = 12
     toggleBtn.Font = Enum.Font.GothamBold
     toggleBtn.BorderSizePixel = 0
-    toggleBtn.AutoButtonColor = true
     toggleBtn.Parent = frame
     
     local corner = Instance.new("UICorner")
@@ -614,7 +660,6 @@ local function CreateSlider(parent, text, pos, min, max, default, callback)
     label.Parent = frame
     
     local sliderBg = Instance.new("Frame")
-    sliderBg.Name = "SliderBg"
     sliderBg.Size = UDim2.new(1, 0, 0, 10)
     sliderBg.Position = UDim2.new(0, 0, 0, 32)
     sliderBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
@@ -626,7 +671,6 @@ local function CreateSlider(parent, text, pos, min, max, default, callback)
     bgCorner.Parent = sliderBg
     
     local sliderFill = Instance.new("Frame")
-    sliderFill.Name = "SliderFill"
     sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
     sliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
     sliderFill.BorderSizePixel = 0
@@ -681,7 +725,6 @@ local function CreateTab(name, icon)
     btn.TextSize = 13
     btn.Font = Enum.Font.GothamSemibold
     btn.BorderSizePixel = 0
-    btn.AutoButtonColor = true
     btn.Parent = TabContainer
     
     local corner = Instance.new("UICorner")
@@ -814,7 +857,7 @@ CreateToggle(AIMBOTContent, "Ativar Aimbot", UDim2.new(0.05, 0, 0, 10), function
     Settings.AIMBOT.Enabled = enabled
 end)
 
--- Seleção de parte (Cabeça vs Peito)
+-- Seleção de parte
 local PartLabel = Instance.new("TextLabel")
 PartLabel.Size = UDim2.new(0.9, 0, 0, 25)
 PartLabel.Position = UDim2.new(0.05, 0, 0, 55)
@@ -1132,14 +1175,13 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 -- ============================================
--- BOTÃO TOGGLE DO MENU (ABRIR/FECHAR)
+-- BOTÃO TOGGLE DO MENU
 -- ============================================
 
 ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
     
     if MainFrame.Visible then
-        -- Animação de abertura
         MainFrame.Size = UDim2.new(0, 0, 0, 0)
         MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
         
@@ -1150,9 +1192,8 @@ ToggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Botão fechar (X)
+-- Botão fechar
 CloseButton.MouseButton1Click:Connect(function()
-    -- Animação de fechamento
     TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -1178,18 +1219,7 @@ end)
 
 -- Remover ESP quando jogador sai
 Players.PlayerRemoving:Connect(function(removedPlayer)
-    if ESPObjects[removedPlayer] then
-        for key, obj in pairs(ESPObjects[removedPlayer]) do
-            if key == "Skeleton" then
-                for _, line in pairs(obj) do
-                    if line and line.Remove then line:Remove() end
-                end
-            elseif obj and obj.Remove then
-                obj:Remove()
-            end
-        end
-        ESPObjects[removedPlayer] = nil
-    end
+    RemoveESP(removedPlayer)
 end)
 
 -- Loop de renderização principal
@@ -1206,7 +1236,7 @@ RunService.RenderStepped:Connect(function()
         warn("Aimbot Error: " .. tostring(err2))
     end
     
-    -- Atualizar FOV Circle (CENTRO DA TELA)
+    -- Atualizar FOV Circle
     local success3, err3 = pcall(UpdateFOV)
     if not success3 then
         warn("FOV Error: " .. tostring(err3))
@@ -1217,7 +1247,7 @@ end)
 -- INICIALIZAÇÃO
 -- ============================================
 
--- Selecionar primeira aba por padrão
+-- Selecionar primeira aba
 Tabs[1].BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 Tabs[1].TextColor3 = Color3.fromRGB(255, 255, 255)
 TabContents["ESP"].Visible = true
@@ -1259,17 +1289,16 @@ TweenService:Create(Notif, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.Easing
 }):Play()
 game:GetService("Debris"):AddItem(Notif, 1)
 
-print("=== INTERFACE CARREGADA ===")
-print("✅ ESP Funcional (Box, Skeleton, Health, Distance, Line)")
-print("✅ Aimbot Funcional (Cabeça/Peito, FOV Configurável)")
+print("=== INTERFACE CARREGADA - DELTA COMPATÍVEL ===")
+print("✅ ESP Funcional")
+print("✅ Aimbot Funcional")
 print("✅ FOV Circle no Centro da Tela (Branco)")
-print("✅ Sistema 3 Toques para ativar/desativar botão")
-print("✅ GUI com animações e design moderno")
+print("✅ Sistema 3 Toques")
 '''
 
-# Salvar o arquivo
-with open('/mnt/agents/output/interface_gui_completa.lua', 'w', encoding='utf-8') as f:
-    f.write(script_content)
+# Salvar
+with open('/mnt/agents/output/delta_gui_script.lua', 'w', encoding='utf-8') as f:
+    f.write(script_delta)
 
-print("✅ Script salvo com sucesso!")
-print(f"Tamanho: {len(script_content)} caracteres")
+print("✅ Script para Delta salvo!")
+print(f"Tamanho: {len(script_delta)} caracteres")
